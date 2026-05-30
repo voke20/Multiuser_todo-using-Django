@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
     "corsheaders",
     "authenticate",
+    "rest_framework_simplejwt.token_blacklist" # to manually blacklist tokens when logged out ie it is invalid even if not expired
 ]
 
 MIDDLEWARE = [

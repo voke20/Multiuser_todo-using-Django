@@ -2,7 +2,26 @@ POST http://localhost:8000/api/auth/register/
 Content-Type: application/json
 
 {
-    "username": "testuser",
-    "email": "test@example.com",
-    "password": "testpassword123"
+    "username": "myuser",
+    "password": "hello123",
+    "email": "ezemechidubem@gmail.com"
 }
+###
+
+POST http://localhost:8000/api/auth/login/
+Content-Type: application/json
+
+{
+    "username": "myuser",
+    "password": "hello123"
+}
+###
+
+POST http://localhost:8000/api/auth/logout/
+Content-Type: application/json
+
+{
+    "refresh": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6MTc4MDI1NzM0NywiaWF0IjoxNzgwMTcwOTQ3LCJqdGkiOiI0MWU0MDNmMGJhZjA0NzBmOTUyYWNiMDNjYWEyYmMxZiIsInVzZXJfaWQiOiIyIn0.HCbSt2iGbsn_azcY5AkdluTrK66uYGtwOXv-cAQYXVA"
+}
+
+
