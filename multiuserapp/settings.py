@@ -44,7 +44,9 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
     "corsheaders",
     "authenticate",
-    "rest_framework_simplejwt.token_blacklist" # to manually blacklist tokens when logged out ie it is invalid even if not expired
+    "rest_framework_simplejwt.token_blacklist", # to manually blacklist tokens when logged out ie it is invalid even if not expired
+    "note",
+    "drf_spectacular",
 ]
 
 MIDDLEWARE = [
@@ -136,6 +138,7 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
 SIMPLE_JWT = {
