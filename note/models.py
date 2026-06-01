@@ -15,3 +15,8 @@ class Note(models.Model):
     owner = models.ForeignKey(User, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
     update_at = models.DateTimeField(auto_now=True)
+
+class NoteShare(models.Model):
+    note = models.ForeignKey(Note, on_delete=models.CASCADE)
+    target = models.ForeignKey(User, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)

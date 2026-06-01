@@ -4,8 +4,10 @@ from rest_framework.response import Response
 from . serializers import RegisterSerializer
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
+from drf_spectacular.utils import extend_schema
 # Create your views here.
 
+@extend_schema(request=RegisterSerializer)
 class RegisterView(APIView):
     def post(self, request):
         serializer = RegisterSerializer(data = request.data)
