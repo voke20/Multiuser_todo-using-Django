@@ -16,7 +16,13 @@ class Note(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     update_at = models.DateTimeField(auto_now=True)
 
+    def __str__(self):
+        return f"{self.title} - {self.owner.username}"
+
 class NoteShare(models.Model):
     note = models.ForeignKey(Note, on_delete=models.CASCADE)
     target = models.ForeignKey(User, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.note.title} shared with {self.target.username} by {self.note.owner.username}"
