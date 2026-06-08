@@ -1,79 +1,119 @@
-
-POST http://localhost:8000/api/auth/register/
+POST http://localhost:8001/api/auth/register/
 Content-Type: application/json
 
 {
-    "username": "voke",
-    "password": "Ozomo999",
-    "email": "ezeme@gmail.com"
+    "email": "ezemehenry20@gmail.com",
+    "password": "hello123"
+}
+###
+POST http://localhost:8001/api/auth/register/
+Content-Type: application/json
+
+{
+    "email": "ezeme20@gmail.com",
+    "password": "hello123"
+}
+###
+POST http://localhost:8001/api/auth/login/
+Content-Type: application/json
+
+{
+    "email": "ezemehenry20@gmail.com",
+    "password": "hello123"
 }
 
 ###
-POST http://localhost:8000/api/auth/register/
+POST http://localhost:8001/api/auth/login/
 Content-Type: application/json
 
 {
-    "username": "Emma",
-    "password": "myname05",
-    "email": "chidubem@gmail.com"
+    "email": "ezemechidubem@gmail.com",
+    "password": "Ozomo999"
 }
-###
 
-POST http://localhost:8000/api/auth/login/
+###
+POST http://localhost:8001/api/auth/login/
+
 Content-Type: application/json
 
 {
-    "username": "myuser",
+    "email": "ezeme20@gmail.com",
     "password": "hello123"
 }
 ###
 
-POST http://localhost:8000/api/auth/login/
+POST http://localhost:8001/api/notes/categories/
 Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzgwODU4ODA1LCJpYXQiOjE3ODA4NTc5MDUsImp0aSI6IjJhNTBkNDQwNzg3OTRmZTlhMDI0NDc1YWZlNzJiNzQxIiwidXNlcl9pZCI6IjUifQ.YDbKMbKJfCe4ZOqyScHUs4TlPQ3XHaeHRzC5jzPBsl8
 
 {
-    "username": "Emma",
-    "password": "myname05"
+    "name": "Work",
+    "description": "Notes related to work"
 }
 ###
 
-POST http://localhost:8000/api/auth/login/
+GET http://localhost:8001/api/notes/categories/
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzgwODU4ODA1LCJpYXQiOjE3ODA4NTc5MDUsImp0aSI6IjJhNTBkNDQwNzg3OTRmZTlhMDI0NDc1YWZlNzJiNzQxIiwidXNlcl9pZCI6IjUifQ.YDbKMbKJfCe4ZOqyScHUs4TlPQ3XHaeHRzC5jzPBsl8
+
+###
+POST http://localhost:8001/api/notes/
 Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzgwODU4ODA1LCJpYXQiOjE3ODA4NTc5MDUsImp0aSI6IjJhNTBkNDQwNzg3OTRmZTlhMDI0NDc1YWZlNzJiNzQxIiwidXNlcl9pZCI6IjUifQ.YDbKMbKJfCe4ZOqyScHUs4TlPQ3XHaeHRzC5jzPBsl8
 
 {
-    "username": "voke",
-    "password": "Ozomo999"
+    "title": "First Note",
+    "content": "This is the content of the first note.",
+    "category": 
 }
 ###
-
-POST http://localhost:8000/api/auth/logout/
+POST http://localhost:8001/api/notes/
 Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzgwODU4ODA1LCJpYXQiOjE3ODA4NTc5MDUsImp0aSI6IjJhNTBkNDQwNzg3OTRmZTlhMDI0NDc1YWZlNzJiNzQxIiwidXNlcl9pZCI6IjUifQ.YDbKMbKJfCe4ZOqyScHUs4TlPQ3XHaeHRzC5jzPBsl8
 
 {
-    "refresh": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6MTc4MDI1NzM0NywiaWF0IjoxNzgwMTcwOTQ3LCJqdGkiOiI0MWU0MDNmMGJhZjA0NzBmOTUyYWNiMDNjYWEyYmMxZiIsInVzZXJfaWQiOiIyIn0.HCbSt2iGbsn_azcY5AkdluTrK66uYGtwOXv-cAQYXVA"
+    "title": "First Note",
+    "content": "This is the content of the first note.",
+    "category": 1
 }
 ###
-
-GET http://localhost:8000/api/notes/
+POST http://localhost:8001/api/notes/
 Content-Type: application/json
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzgwMjQ0MTIzLCJpYXQiOjE3ODAyNDMyMjMsImp0aSI6ImY4Y2FjNDQzZDkwZTRlNzA5ZDdhYjcxM2ZmOWJlZDQxIiwidXNlcl9pZCI6IjIifQ.UBY4S_Pk4D_Qq8KgxF8WyWJAVJPgPvpWTD8_mFh3YlA
-###
-
-POST http://localhost:8000/api/notes/
-Content-Type: application/json
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzgwMjQ0MDA5LCJpYXQiOjE3ODAyNDMxMDksImp0aSI6IjQ2OWExMTc3MmQwMjRhMTA5MzA4MmIxMmFjNzkxYmEyIiwidXNlcl9pZCI6IjQifQ.TrgJpbcGIy7HPb7Es309BnHM3Pd0BaFLXZoW617x_yc
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzgwODU4ODA1LCJpYXQiOjE3ODA4NTc5MDUsImp0aSI6IjJhNTBkNDQwNzg3OTRmZTlhMDI0NDc1YWZlNzJiNzQxIiwidXNlcl9pZCI6IjUifQ.YDbKMbKJfCe4ZOqyScHUs4TlPQ3XHaeHRzC5jzPBsl8
 
 {
-    "title": "Backend",
-    "content": "Teaching about django and python",
-    "content_type": "markdown"
+    "title": "Second Note",
+    "content": "This is the content of the second note.",
+    "category": 1
+}
+
+###
+GET http://localhost:8001/api/notes/
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzgwODU4ODA1LCJpYXQiOjE3ODA4NTc5MDUsImp0aSI6IjJhNTBkNDQwNzg3OTRmZTlhMDI0NDc1YWZlNzJiNzQxIiwidXNlcl9pZCI6IjUifQ.YDbKMbKJfCe4ZOqyScHUs4TlPQ3XHaeHRzC5jzPBsl8       
+
+###
+GET http://localhost:8001/api/notes/1/
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzgwODU4ODA1LCJpYXQiOjE3ODA4NTc5MDUsImp0aSI6IjJhNTBkNDQwNzg3OTRmZTlhMDI0NDc1YWZlNzJiNzQxIiwidXNlcl9pZCI6IjUifQ.YDbKMbKJfCe4ZOqyScHUs4TlPQ3XHaeHRzC5jzPBsl8
+
+###
+POST http://localhost:8001/api/notes/1/share/
+Content-Type: application/json
+Authorization: Bearer <token>
+
+{
+    "target_user_id": 2
 }
 ###
-
-GET http://localhost:8000/api/notes/3
-Content-Type: application/json
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzgwMjQ0MTIzLCJpYXQiOjE3ODAyNDMyMjMsImp0aSI6ImY4Y2FjNDQzZDkwZTRlNzA5ZDdhYjcxM2ZmOWJlZDQxIiwidXNlcl9pZCI6IjIifQ.UBY4S_Pk4D_Qq8KgxF8WyWJAVJPgPvpWTD8_mFh3YlA
+GET http://localhost:8001/api/notes/shared/
+Authorization: Bearer <token>
+###
+GET http://localhost:8001/api/notes/myshared/
+Authorization: Bearer <token>
 ###
 
+POST http://localhost:8001/api/notes/2/send-email/
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzgwODYwMDA0LCJpYXQiOjE3ODA4NTkxMDQsImp0aSI6IjQwYzg2ZTk4NTYxODRjMWZhOTljOWU4NDljNzEyNjgzIiwidXNlcl9pZCI6IjUifQ.w_BXZS_Dxbf0B426AG9TgS3EVMjEN4IAQrkwXLWCL3w
 
-
+{
+    "recipient_email": "ezemehenry20@gmail.com"
+}
