@@ -44,7 +44,7 @@ Content-Type: application/json
 
 POST http://localhost:8001/api/notes/categories/
 Content-Type: application/json
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzgwODU4ODA1LCJpYXQiOjE3ODA4NTc5MDUsImp0aSI6IjJhNTBkNDQwNzg3OTRmZTlhMDI0NDc1YWZlNzJiNzQxIiwidXNlcl9pZCI6IjUifQ.YDbKMbKJfCe4ZOqyScHUs4TlPQ3XHaeHRzC5jzPBsl8
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzgwODk4NjUzLCJpYXQiOjE3ODA4OTc3NTMsImp0aSI6ImEyZjFmNjMxODg2ZjRjMmJhMTIxMzQyODcyN2QzYWZlIiwidXNlcl9pZCI6IjUifQ.3lcYTpJ6RhbEe_jejpKyZaQJJdIpOKMul0MyyqSzzws
 
 {
     "name": "Work",
@@ -53,7 +53,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiY
 ###
 
 GET http://localhost:8001/api/notes/categories/
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzgwODU4ODA1LCJpYXQiOjE3ODA4NTc5MDUsImp0aSI6IjJhNTBkNDQwNzg3OTRmZTlhMDI0NDc1YWZlNzJiNzQxIiwidXNlcl9pZCI6IjUifQ.YDbKMbKJfCe4ZOqyScHUs4TlPQ3XHaeHRzC5jzPBsl8
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzgwODk4NjUzLCJpYXQiOjE3ODA4OTc3NTMsImp0aSI6ImEyZjFmNjMxODg2ZjRjMmJhMTIxMzQyODcyN2QzYWZlIiwidXNlcl9pZCI6IjUifQ.3lcYTpJ6RhbEe_jejpKyZaQJJdIpOKMul0MyyqSzzws
 
 ###
 POST http://localhost:8001/api/notes/
@@ -88,7 +88,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiY
 
 ###
 GET http://localhost:8001/api/notes/
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzgwODU4ODA1LCJpYXQiOjE3ODA4NTc5MDUsImp0aSI6IjJhNTBkNDQwNzg3OTRmZTlhMDI0NDc1YWZlNzJiNzQxIiwidXNlcl9pZCI6IjUifQ.YDbKMbKJfCe4ZOqyScHUs4TlPQ3XHaeHRzC5jzPBsl8       
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzgwODk4MDU5LCJpYXQiOjE3ODA4OTcxNTksImp0aSI6Ijc2OTlmYTBjZmM0YzQ2ZWViNzlmNzFiYjdiZmY2OWNkIiwidXNlcl9pZCI6IjUifQ.FPNIKf2XgS4SJJGz9gU57Ry-kvGjppL4o0jmfMMyjOQ       
 
 ###
 GET http://localhost:8001/api/notes/1/
@@ -112,8 +112,8 @@ Authorization: Bearer <token>
 
 POST http://localhost:8001/api/notes/2/send-email/
 Content-Type: application/json
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzgwODYwMDA0LCJpYXQiOjE3ODA4NTkxMDQsImp0aSI6IjQwYzg2ZTk4NTYxODRjMWZhOTljOWU4NDljNzEyNjgzIiwidXNlcl9pZCI6IjUifQ.w_BXZS_Dxbf0B426AG9TgS3EVMjEN4IAQrkwXLWCL3w
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzgwODk4MDU5LCJpYXQiOjE3ODA4OTcxNTksImp0aSI6Ijc2OTlmYTBjZmM0YzQ2ZWViNzlmNzFiYjdiZmY2OWNkIiwidXNlcl9pZCI6IjUifQ.FPNIKf2XgS4SJJGz9gU57Ry-kvGjppL4o0jmfMMyjOQ
 
 {
-    "recipient_email": "ezemehenry20@gmail.com"
+    "recipient_email": "cezeme.2200675@stu.cu.edu.ng"
 }
