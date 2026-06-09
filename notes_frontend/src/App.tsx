@@ -1,30 +1,17 @@
-function MyButton() {
-    return (
-        <button>I am a button</button>
-    )
-}
+import React from 'react'
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 
-const products = [
-  { title: 'Cabbage', id: 1 },
-  { title: 'Garlic', id: 2 },
-  { title: 'Apple', id: 3 },
-];
-
-
-export default function MyTable(){  
-  
-    
-  const ListItems = products.map(product =>
-    <li key={product.id}>
-      {product.title}
-    </li>
-  )
+function App() {
   return (
-    <div>
-        <h1>Welcome to My Table</h1>
-        <MyButton />
-      <ul>{ListItems}</ul>
-    </div>
-  )
+    <Router>
+      <Routes>
+        <Route path="/" element={<h1>Home</h1>}/>
+        <Route path="/login" element={<h1>Login</h1>} />
+        <Route path="/register" element={<h1>Register</h1>} />
+        <Route path="/dashboard" element={<h1>Dashboard</h1>} />
+      </Routes>
+    </Router>
+  );
 }
 
+export default App;

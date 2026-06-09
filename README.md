@@ -1,7 +1,7 @@
 # Note Taking API
 
 ## Description
-A REST API for a multi-user note taking application built with Django and Django REST Framework. Users can create, read, update and delete notes, and share notes with other users.
+A REST API for a multi-user note taking application built with Django and Django REST Framework. Users can create, read, update and delete notes, share notes with other users, upload file attachments and send notes via email.
 
 ## Tech Stack
 - Python
@@ -10,36 +10,28 @@ A REST API for a multi-user note taking application built with Django and Django
 - djangorestframework-simplejwt
 - PostgreSQL
 - Docker
+- CKEditor (RichTextField)
+- python-magic (file type detection)
 
 ## Setup Instructions
 
 ### Prerequisites
 - Docker
-- Python 3.x
+- Python 3.14
 
 ### Installation
 1. Clone the repository
    git clone https://github.com/voke20/Multiuser_todo-using-Django.git
 
-2. Create a .env file in the root directory and add:
-   SECRET_KEY=your_secret_key
-   POSTGRES_DB=your_db_name
-   POSTGRES_USER=your_db_user
-   POSTGRES_PASSWORD=your_db_password
-   POSTGRES_HOST=localhost
-   POSTGRES_PORT=5432
+2. Create a .env file based on .env.example
+   cp .env.example .env
+   
+3. Update .env with your own values
 
-3. Start PostgreSQL container
-   docker compose up -d
+4. Build and run with Docker
+   docker compose up --build
 
-4. Install dependencies
-   pip install -r requirements.txt
-
-5. Run migrations
-   python manage.py migrate
-
-6. Start the server
-   python manage.py runserver
+5. Visit http://localhost:8000/api/docs/ for API documentation
 
 ## API Endpoints
 
@@ -57,15 +49,41 @@ A REST API for a multi-user note taking application built with Django and Django
 - PATCH /api/notes/<id>/
 - DELETE /api/notes/<id>/
 
+### Categories
+- GET /api/notes/categories/
+- POST /api/notes/categories/
+- GET /api/notes/categories/<id>/
+- PUT /api/notes/categories/<id>/
+- DELETE /api/notes/categories/<id>/
+
 ### Note Sharing
 - POST /api/notes/<id>/share/
 - DELETE /api/notes/<id>/share/<user_id>/
 - GET /api/notes/shared/
-- GET /api/notes/my-shared/
+- GET /api/notes/myshared/
+
+### File Uploads
+- POST /api/notes/<id>/uploads/
+- GET /api/notes/<id>/uploads/
+
+### Email
+- POST /api/notes/<id>/send-email/
+
+## Features
+- JWT Authentication
+- Custom User Model (email + phone login)
+- Note Categories
+- Note Pinning
+- File Uploads (PNG, JPEG, JPG, PDF, TXT)
+- Auto file type detection
+- Note Sharing
+- Send notes via email (SMTP)
+- Search/filter notes
+- Swagger API documentation at /api/docs/
 
 ## Running Tests
 python manage.py test authenticate
 python manage.py test note
 
-## API Documentation
-Visit /api/docs/ for interactive Swagger documentation
+## Environment Variables
+See .env.example for required variables
