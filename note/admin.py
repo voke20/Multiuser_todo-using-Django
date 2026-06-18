@@ -1,3 +1,4 @@
+"""Note admin.py."""
 from django.contrib import admin
 from . models import Note, NoteShare, Category
 # Register your models here.

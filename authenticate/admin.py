@@ -1,12 +1,22 @@
+"""Authenticate admin."""
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from . models import CustomerModel
 # Register your models here.
 
+
 @admin.register(CustomerModel)
 class CustomerAdmin(UserAdmin):
-    list_display = ("id", "email", "phone_number", "is_staff", "is_active")
-    ordering= ["id"]
+    """Admin class for CustomerModel."""
+
+    list_display = (
+        "id",
+        "email",
+        "phone_number",
+        "is_staff",
+        "is_active"
+        )
+    ordering = ["id"]
     fieldsets = (
         (None, {'fields': ('email', 'password')}),
         ('Personal info', {'fields': ('phone_number',)}),
