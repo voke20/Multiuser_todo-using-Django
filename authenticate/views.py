@@ -1,8 +1,9 @@
 """Authenticate views."""
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from . serializers import RegisterSerializer
+from authenticate.serializers import RegisterSerializer, CustomTokenSerializer
 from rest_framework import status
+from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
 from rest_framework.permissions import IsAuthenticated
@@ -65,3 +66,9 @@ class LogoutView(APIView):
         token.blacklist()
         return Response({"message": "Logged Out Successful"},
                         status=status.HTTP_200_OK)
+
+
+class CustomTokenView(TokenObtainPairView):
+    """Customizing Token View."""
+
+    serializer_class = CustomTokenSerializer

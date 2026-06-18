@@ -36,6 +36,8 @@ class CustomerModel(AbstractBaseUser, PermissionsMixin):
 
     email = models.EmailField(unique=True)
     phone_number = models.CharField(max_length=15, blank=True, null=True)
+    first_name = models.CharField(max_length=15, blank=True)
+    last_name = models.CharField(max_length=15, blank=True)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     date_joined = models.DateTimeField(auto_now_add=True)
@@ -46,3 +48,7 @@ class CustomerModel(AbstractBaseUser, PermissionsMixin):
     def __str__(self):
         """Display user object."""
         return self.email
+
+    def get_full_name(self):
+        """Get firstname of user."""
+        return f"{self.first_name} {self.last_name}".strip()

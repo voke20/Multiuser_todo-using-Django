@@ -1,7 +1,7 @@
 """Note views."""
 from rest_framework import viewsets, permissions
-from .models import Note, NoteShare, Category, NoteUpload
-from .serializers import (
+from note.models import Note, NoteShare, Category, NoteUpload, FileTypeChoices
+from note.serializers import (
     NoteSerializer,
     NoteShareSerializer,
     CategorySerializer,
@@ -9,7 +9,7 @@ from .serializers import (
     SendEmailSerializer,
     NoteShareRequestSerializer,
 )
-from .permissions import Owner
+from note.permissions import Owner
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
@@ -157,14 +157,8 @@ class NoteUploadViewSet(APIView):
             )
         file_type = magic.from_buffer(file.read(1024), mime=True)
         file.seek(0)
-        allowed_types = [
-            "image/png",
-            "image/jpeg",
-            "image/jpg",
-            "application/pdf",
-            "text/plain",
-        ]
-        if file_type not in allowed_types:
+        Allowed_Types = [choice[0] for choice in FileTypeChoices]
+        if file_type not in Allowed_Types:
             return Response(
                 {"error": f"File type {file_type} not allowed"},
                 status=status.HTTP_400_BAD_REQUEST,

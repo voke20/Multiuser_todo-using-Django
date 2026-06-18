@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 from pathlib import Path
 from datetime import timedelta
 import os
+from decouple import config
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -23,7 +24,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
 # USING PYTHON DECOUPLE TO IMPORT SECRET KEY
-from decouple import config
+
 SECRET_KEY = config('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
@@ -45,7 +46,7 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
     "corsheaders",
     "authenticate",
-    "rest_framework_simplejwt.token_blacklist", # to manually blacklist tokens when logged out ie it is invalid even if not expired
+    "rest_framework_simplejwt.token_blacklist",
     "note",
     "drf_spectacular",
     "ckeditor",
@@ -86,7 +87,7 @@ WSGI_APPLICATION = "multiuserapp.wsgi.application"
 
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
-from decouple import config
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
@@ -140,7 +141,8 @@ MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
-    ]
+    "http://127.0.0.1:5173",
+]
 
 CORS_ALLOW_CREDENTIALS = True
 

@@ -75,23 +75,26 @@ class NoteShare(models.Model):
         )
 
 
+class FileTypeChoices(models.TextChoices):
+    """File type choices for uploads."""
+
+    PNG = "image/png", 'PNG'
+    JPEG = 'image/jpeg', 'JPEG'
+    JPG = 'image/jpg', 'JPG'
+    TXT = 'text/plain', 'TXT'
+    PDF = 'application/pdf', 'PDF'
+
+
 class NoteUpload(models.Model):
     """NoteUpload models."""
 
-    File_Type_Choices = [
-        ('image/png', 'PNG'),
-        ('image/jpeg', 'JPEG'),
-        ('image/jpg', 'JPG'),
-        ('application/pdf', 'PDF'),
-        ('text/plain', 'TXT'),
-    ]
     note = models.ForeignKey(
         Note,
         on_delete=models.CASCADE,
         related_name="uploads"
     )
     file = models.FileField(upload_to='note_uploads/')
-    file_type = models.CharField(max_length=50, choices=File_Type_Choices)
+    file_type = models.CharField(max_length=50, choices=FileTypeChoices)
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
