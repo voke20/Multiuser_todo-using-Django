@@ -8,6 +8,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
 from rest_framework.permissions import IsAuthenticated
 from drf_spectacular.utils import extend_schema, OpenApiParameter
+import logging
+logger = logging.getLogger('authenticate')
 User = get_user_model()
 
 
@@ -52,8 +54,10 @@ class RegisterView(APIView):
         serializer = RegisterSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
+            logger.info(f'New user registered: {request.data.get("email")}')
             return Response({"message": "Registered Successfully"},
                             status=status.HTTP_201_CREATED)
+        logger.warning(f'Registration failed: {serializer.errors}')
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 

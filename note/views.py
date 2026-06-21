@@ -19,9 +19,13 @@ from rest_framework import status
 from rest_framework.filters import SearchFilter
 from django.core.mail import EmailMessage
 from django.conf import settings
+from note.pagination import NotePagination, CategoryPagination
+from django.template.loader import render_to_string
+import logging
 import magic
 import re
 
+logger = logging.getLogger('note')
 User = get_user_model()
 # Create your views here.
 
@@ -33,14 +37,28 @@ class NoteViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated, Owner]
     filter_backends = [SearchFilter]
     search_fields = ["title", "content"]
+    pagination_class = NotePagination
 
     def get_queryset(self):
         """Return notes belonging to the requesting user."""
-        return Note.objects.filter(owner=self.request.user)
+        queryset = Note.objects.filter(owner=self.request.user)
+        is_pinned = self.request.query_params.get('is_pinned', None)
+        category = self.request.query_params.get('category', None)
+        if is_pinned is not None:
+            queryset = queryset.filter(is_pinned=is_pinned.lower() == 'true')
+        if category is not None:
+            queryset = queryset.filter(category=category)
+        return queryset
 
     def perform_create(self, serializer):
         """Save a new note setting the owner to the requester."""
         serializer.save(owner=self.request.user)
+        logger.info(f'Note created by {self.request.user.email}')
+
+    def perform_destroy(self, instance):
+        """Delete logs."""
+        logger.info(f'Note {instance.id} deleted by {self.request.user.email}')
+        instance.delete()
 
 
 class CategoryViewSet(viewsets.ModelViewSet):
@@ -48,6 +66,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
 
     serializer_class = CategorySerializer
     permission_classes = [permissions.IsAuthenticated]
+    pagination_class = CategoryPagination
 
     def get_queryset(self):
         """Return categories owned by the requesting user."""
@@ -198,17 +217,19 @@ class SendNoteEmailView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         clean_content = re.sub(r"<[^>]+>", "", note.content)
+        html_content = render_to_string('email/sendemail.html', {
+            'title': note.title,
+            'content': clean_content,
+            'link': 'http://localhost:5173/register',
+            'sender': note.owner.email
+        })
         email = EmailMessage(
             subject=f"Note shared with you: {note.title}",
-            body=(
-                f"{note.owner.email} shared this note with you!\n\n"
-                f"Title: {note.title}\n\n"
-                f"Content: {clean_content}\n\n"
-                "Sent Via Multiuser NoteApp"
-            ),
+            body=(html_content),
             from_email=settings.EMAIL_HOST_USER,
             to=[recipient_email],
         )
+        email.content_subtype = 'html'
         if include_attachments:
             uploads = NoteUpload.objects.filter(note=note)
             for upload in uploads:
@@ -221,3 +242,4 @@ class SendNoteEmailView(APIView):
             {"message": "Note sent via email successfully"},
             status=status.HTTP_200_OK,
         )
+
