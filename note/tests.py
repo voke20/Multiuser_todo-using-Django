@@ -62,25 +62,25 @@ class NoteTests(APITestCase):
         self.assertEqual(response.data["title"], "Test Note")
         self.assertEqual(response.data['category'], self.category.id)
 
-    # def test_filter_notes_by_category(self):
-    #     """Get notes by category."""
-    #     Note.objects.create(
-    #         title="Work Note",
-    #         content="Content",
-    #         content_type="plain_text",
-    #         owner=self.user,
-    #         category=self.category,
-    #     )
-    #     Note.objects.create(
-    #         title="Personal Note",
-    #         content="Content",
-    #         content_type="plain_text",
-    #         owner=self.user,
-    #     )
-    #     response = self.client.post(
-    # f"/api/notes/?category={self.category.id}"
-    # )
-    #     self.assertEqual(response.status_code, status.HTTP_200_OK)
+    def test_filter_notes_by_category(self):
+        """Get notes by category."""
+        Note.objects.create(
+            title="Work Note",
+            content="Content",
+            content_type="plain_text",
+            owner=self.user,
+            category=self.category,
+        )
+        Note.objects.create(
+            title="Personal Note",
+            content="Content",
+            content_type="plain_text",
+            owner=self.user,
+        )
+        response = self.client.post(
+            f"/api/notes/?category={self.category.id}"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_get_notes(self):
         """Get notes."""
