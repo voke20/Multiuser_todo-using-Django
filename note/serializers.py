@@ -1,20 +1,22 @@
 from rest_framework import serializers
 from django.conf import settings
 from . models import Note, NoteShare, Category, NoteUpload
-
-
-
 class NoteSerializer(serializers.ModelSerializer):
-    owner = serializers.ReadOnlyField(source='owner.email.split("@")[0]')
+    owner = serializers.ReadOnlyField(source='owner.email')
     class Meta:
         model = Note
         fields ="__all__"
 
 class NoteShareSerializer(serializers.ModelSerializer):
-    note= NoteSerializer()
+    note = NoteSerializer()
+    target_email = serializers.SerializerMethodField()
+    
     class Meta:
         model = NoteShare
-        fields = ["id", "note", "target", "created_at"]
+        fields = ['id', 'note', 'target', 'target_email', 'created_at']
+    
+    def get_target_email(self, obj):
+        return obj.target.email
 
 class NoteShareRequestSerializer(serializers.Serializer):
     target = serializers.IntegerField()
