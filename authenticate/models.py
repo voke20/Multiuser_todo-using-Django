@@ -1,4 +1,3 @@
-"""Authenticate models."""
 from django.db import models
 from django.contrib.auth.models import (
     AbstractBaseUser,
@@ -46,7 +45,6 @@ class CustomerModel(AbstractBaseUser, PermissionsMixin):
     REQUIRED_FIELDS = []
 
     def __str__(self):
-        """Display user object."""
         return self.email
 
     def get_full_name(self):
