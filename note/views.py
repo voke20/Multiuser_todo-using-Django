@@ -214,9 +214,10 @@ class SendNoteEmailView(APIView):
             uploads = NoteUpload.objects.filter(note=note)
             for upload in uploads:
                 try:
-                    email.attach_file(upload.file.path)
+                    with upload.file.open('rb') as f:
+                    email.attach_file(upload.file.name,  f.read(), upload.file.field.content_type)
                 except Exception:
-                    pass
+                    logger.error(f"Failed to attach {upload.file.name}: {e}")
         email.send()
         return Response(
             {"message": "Note sent via email successfully"},
