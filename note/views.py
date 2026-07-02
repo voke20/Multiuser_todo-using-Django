@@ -40,10 +40,12 @@ class NoteViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Return notes belonging to the requesting user."""
         queryset = Note.objects.filter(owner=self.request.user)
-        is_pinned = self.request.query_params.get('is_pinned', None)
+        pinned = self.request.query_params.get('is_pinned', None)
+        is_pinned = pinned and pinned.lower() == "true"
+        if is_pinned:
+            queryset = queryset.filter(is_pinned=is_pinned)
         category = self.request.query_params.get('category', None)
-        if is_pinned is not None:
-            queryset = queryset.filter(is_pinned=is_pinned.lower() == 'true')
+        
         if category is not None:
             queryset = queryset.filter(category=category)
         return queryset
