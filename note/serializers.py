@@ -1,28 +1,23 @@
-"""NOte Serializers."""
 from rest_framework import serializers
 from . models import Note, NoteShare, Category, NoteUpload
 
 
 class NoteSerializer(serializers.ModelSerializer):
-    """Note Serializers."""
 
     owner = serializers.ReadOnlyField(source='owner.email')
 
     class Meta:
-        """NoteSerializer meta class."""
 
         model = Note
         fields = "__all__"
 
 
 class NoteShareSerializer(serializers.ModelSerializer):
-    """NoteShare Serializer."""
 
     note = NoteSerializer()
     target_email = serializers.SerializerMethodField()
 
     class Meta:
-        """NoteShare Serializer meta class."""
 
         model = NoteShare
         fields = ['id', 'note', 'target', 'target_email', 'created_at']

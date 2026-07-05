@@ -1,102 +1,338 @@
-from django.test import TestCase
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from rest_framework.test import APITestCase
 from rest_framework import status
-from .models import Note
+from .models import Note, Category
 
+User = get_user_model()
 # Create your tests here.
+
+
 class NoteTests(APITestCase):
-    
-    # Authorization and Token Generation Testing
+    """Testing Notes."""
+
     def setUp(self):
-        self.user = User.objects.create_user(username='testvoke', password='testing123')
-        response = self.client.post('/api/auth/login/', {"username": "testvoke", "password": "testing123"}, format='json')
-        self.token = response.data['access']
-        self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + self.token)
+        """Get Token Generation Testing."""
+        self.user = User.objects.create_user(
+            email="testvoke@gmail.com",
+            password="testing123",
+            first_name="Test",
+            last_name="user",
+        )
+        response = self.client.post(
+            "/api/auth/login/",
+            {"email": "testvoke@gmail.com", "password": "testing123"},
+            format="json",
+        )
+        self.token = response.data["access"]
+        self.client.credentials(HTTP_AUTHORIZATION="Bearer " + self.token)
+
+        self.category = Category.objects.create(
+            name='Work',
+            owner=self.user,
+        )
 
     # creating note testing
     def test_create_note(self):
-        data = {"title": "Test Note", "content": "Test content", "content_type": "plain_text"}
-        response = self.client.post('/api/notes/', data, format='json')
+        """Test create note."""
+        data = {
+            "title": "Test Note",
+            "content": "Test content",
+            "content_type": "plain_text",
+            "is_pinned": False,
+        }
+        response = self.client.post("/api/notes/", data, format="json")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["title"], "Test Note")
+        self.assertEqual(response.data["content"], "Test content")
+        self.assertEqual(response.data["owner"], "testvoke@gmail.com")
 
-    # Get notes
-    def test_get_notes(self):
-        response = self.client.get('/api/notes/')
+    def test_create_note_by_category(self):
+        """Test create note with category."""
+        data = {
+            "title": "Test Note",
+            "content": "Test content",
+            "content_type": "plain_text",
+            "is_pinned": False,
+            "category": self.category.id,
+        }
+        response = self.client.post("/api/notes/", data, format="json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["title"], "Test Note")
+        self.assertEqual(response.data['category'], self.category.id)
+
+    def test_filter_notes_by_category(self):
+        """Get notes by category."""
+        Note.objects.create(
+            title="Work Note",
+            content="Content",
+            content_type="plain_text",
+            owner=self.user,
+            category=self.category,
+        )
+        Note.objects.create(
+            title="Personal Note",
+            content="Content",
+            content_type="plain_text",
+            owner=self.user,
+        )
+        response = self.client.post(
+            f"/api/notes/?category={self.category.id}"
+        )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
+    def test_get_notes(self):
+        """Get notes."""
+        response = self.client.get("/api/notes/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("results", response.data)
+        self.assertIn("count", response.data)
+        self.assertIn("next", response.data)
+        self.assertIn("previous", response.data)
+        self.assertIn("total_pages", response.data)
+        self.assertIn("current_page", response.data)
+
+    def test_get_notes_by_id(self):
+        """Get notes by id."""
+        note = Note.objects.create(
+            title="Test Note",
+            content="Test content",
+            content_type="plain_text",
+            owner=self.user,
+        )
+        response = self.client.get(f"/api/notes/{note.id}/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["title"], "Test Note")
+        self.assertEqual(response.data["id"], note.id)
+
+    def test_update_note(self):
+        """Update note."""
+        note = Note.objects.create(
+            title="Old Title",
+            content="Old Content",
+            content_type="plain_text",
+            owner=self.user,
+        )
+        data = {"title": "New Title"}
+        response = self.client.patch(
+            f"/api/notes/{note.id}/", data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["title"], "New Title")
+
+    def test_delete_note(self):
+        """Delete note."""
+        note = Note.objects.create(
+            title="Test Note",
+            content="Test content",
+            content_type="plain_text",
+            owner=self.user,
+        )
+        response = self.client.delete(f"/api/notes/{note.id}/")
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
     def test_unauthorized_access(self):
+        """Test Unauthorized access."""
         self.client.credentials()
-        response = self.client.get('/api/notes/')
+        response = self.client.get("/api/notes/")
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_pinned_notes(self):
+        """Get pinned notes."""
+        Note.objects.create(
+            title="Pinned Note",
+            content="Content",
+            content_type="plain_type",
+            owner=self.user,
+            is_pinned=True,
+        )
+        Note.objects.create(
+            title="Normal Note",
+            content="Content",
+            content_type="plain_text",
+            owner=self.user,
+            is_pinned=False,
+        )
+        response = self.client.get("/api/notes/?is_pinned=true")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(response.data["results"][0]["title"], "Pinned Note")
+
+
+class CategoryTest(APITestCase):
+    """Category Testing."""
+
+    def setUp(self):
+        """Get users token."""
+        self.user = User.objects.create_user(
+            email="testvoke@gmail.com",
+            password="testpass123",
+        )
+        response = self.client.post(
+            "/api/auth/login/",
+            {"email": "testvoke@gmail.com", "password": "testpass123"},
+            format="json",
+        )
+        self.token = response.data["access"]
+        self.client.credentials(HTTP_AUTHORIZATION="Bearer " + self.token)
+
+    def test_create_category(self):
+        """Create category."""
+        data = {"name": "Work"}
+        response = self.client.post(
+            "/api/notes/categories/", data, format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["name"], "Work")
+
+    def test_get_categories(self):
+        """Get Category."""
+        response = self.client.get("/api/notes/categories/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_delete_category(self):
+        """Delete Category."""
+        category = Category.objects.create(
+            name="Work",
+            owner=self.user,
+        )
+        response = self.client.delete(f"/api/notes/categories/{category.id}/")
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
 
 class PermissionTests(APITestCase):
-    # set ups two users 
+    """Get ups two users."""
+
     def setUp(self):
-        self.user1 = User.objects.create_user(username='user1', password='testpass123')
-        self.user2 = User.objects.create_user(username='user2', password='testpass123')
-        
+        """Get users token."""
+        self.user1 = User.objects.create_user(
+            "user1@gmail.com", "testpass123"
+        )
+        self.user2 = User.objects.create_user(
+            "user2@gmail.com", "testpass123"
+        )
+
         # login as user1
-        response = self.client.post('/api/auth/login/', {"username": "user1", "password": "testpass123"}, format='json')
+        response = self.client.post(
+            "/api/auth/login/",
+            {"email": "user1@gmail.com", "password": "testpass123"},
+            format="json",
+        )
         self.token1 = response.data['access']
-        
+
         # login as user2
-        response = self.client.post('/api/auth/login/', {"username": "user2", "password": "testpass123"}, format='json')
+        response = self.client.post(
+            "/api/auth/login/",
+            {"email": "user2@gmail.com", "password": "testpass123"},
+            format="json",
+        )
         self.token2 = response.data['access']
 
     # checks if user 1 can access user 2 token
     def testuser_cannot_access_others_notes(self):
-        # create note as user1
-        self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + self.token1)
-        response = self.client.post('/api/notes/', {"title": "User1 Note", "content": "content", "content_type": "plain_text"}, format='json')
-        note_id = response.data['id']
-        
-        # trying to access as user2
-        self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + self.token2)
-        response = self.client.get(f'/api/notes/{note_id}/')
+        """Create note as user1."""
+        self.client.credentials(HTTP_AUTHORIZATION="Bearer " + self.token1)
+        note = Note.objects.create(
+            title="User1 Note",
+            content="Content",
+            content_type="plain_text",
+            owner=self.user1,
+        )
+        self.client.credentials(HTTP_AUTHORIZATION="Bearer " + self.token2)
+        response = self.client.get(f"/api/notes/{note.id}/")
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
+    def testuser_cannot_delete_others_notes(self):
+        """Create note as user1."""
+        self.client.credentials(HTTP_AUTHORIZATION="Bearer " + self.token1)
+        note = Note.objects.create(
+            title="User1 Note",
+            content="Content",
+            content_type="plain_text",
+            owner=self.user1,
+        )
+        self.client.credentials(HTTP_AUTHORIZATION="Bearer " + self.token2)
+        response = self.client.delete(f"/api/notes/{note.id}/")
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+
 class SharingTests(APITestCase):
-    # sets up two users and user1 creates a note
+    """Gets up two users and user1 creates a note."""
+
     def setUp(self):
-        self.user1 = User.objects.create_user(username='shareuser1', password='testpass123')
-        self.user2 = User.objects.create_user(username='shareuser2', password='testpass123')
-        
-        response = self.client.post('/api/auth/login/', {"username": "shareuser1", "password": "testpass123"}, format='json')
+        """Get user token."""
+        self.user1 = User.objects.create_user(
+            "user1@gmail.com", "testpass123"
+        )
+        self.user2 = User.objects.create_user(
+            "user2@gmail.com", "testpass123"
+        )
+
+        # login as user1
+        response = self.client.post(
+            "/api/auth/login/",
+            {"email": "user1@gmail.com", "password": "testpass123"},
+            format="json",
+        )
         self.token1 = response.data['access']
-        
-        response = self.client.post('/api/auth/login/', {"username": "shareuser2", "password": "testpass123"}, format='json')
-        self.token2 = response.data['access']
-        
-        # create a note as user1
-        self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + self.token1)
-        response = self.client.post('/api/notes/', {"title": "Shared Note", "content": "content", "content_type": "plain_text"}, format='json')
-        self.note_id = response.data['id']
 
-    # sharing user1 notes with user2
+        # login as user2
+        response = self.client.post(
+            "/api/auth/login/",
+            {"email": "user2@gmail.com", "password": "testpass123"},
+            format="json",
+        )
+        self.token2 = response.data["access"]
+
+        self.client.credentials(HTTP_AUTHORIZATION="Bearer " + self.token1)
+        self.note = Note.objects.create(
+            title="Shared Note",
+            content="Content",
+            content_type="plain_text",
+            owner=self.user1,
+        )
+        self.note_id = self.note.id
+
     def test_share_note(self):
-        self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + self.token1)
-        response = self.client.post(f'/api/notes/{self.note_id}/share/', {"target": self.user2.id}, format='json')
+        """Share user1 notes with user2."""
+        self.client.credentials(HTTP_AUTHORIZATION="Bearer " + self.token1)
+        response = self.client.post(
+            f"/api/notes/{self.note.id}/share/",
+            {"target": self.user2.id},
+            format="json",
+        )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["message"], "Note shared successfully")
 
-    # getting user2 to view user1 note
     def test_shared_user_can_view_note(self):
-        # share note
-        self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + self.token1)
-        self.client.post(f'/api/notes/{self.note_id}/share/', {"target": self.user2.id}, format='json')
-        
+        """Share note."""
+        self.client.credentials(HTTP_AUTHORIZATION="Bearer " + self.token1)
+        self.client.post(
+            f"/api/notes/{self.note.id}/share/",
+            {"target": self.user2.id},
+            format="json",
+        )
+
         # user2 views shared notes
-        self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + self.token2)
-        response = self.client.get('/api/notes/shared/')
+        self.client.credentials(HTTP_AUTHORIZATION="Bearer " + self.token2)
+        response = self.client.get("/api/notes/shared/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
 
     def test_revoke_sharing(self):
-        # user1 share a note with user2
-        self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + self.token1)
-        self.client.post(f'/api/notes/{self.note_id}/share/', {"target":self.user2.id}, format='json')
+        """User1 share a note with user2."""
+        self.client.credentials(HTTP_AUTHORIZATION="Bearer " + self.token1)
+        self.client.post(
+            f"/api/notes/{self.note.id}/share/",
+            {"target": self.user2.id},
+            format="json",
+        )
 
-        target_id= self.user2.id
-        # user1 deletes shared note 
-        response = self.client.delete(f'/api/notes/{self.note_id}/share/{target_id}/', format='json')
+        target_id = self.user2.id
+        # user1 deletes shared note
+        response = self.client.delete(
+            f"/api/notes/{self.note_id}/share/{target_id}/", format="json"
+        )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            response.data["message"], "Shared note deleted successfully"
+            )

@@ -20,6 +20,7 @@ services:
     volumes:
       - .:/app
       - ./media:/app/media  
+      - ./logs:/app/logs
     ports:
       - "8000:8000"
     environment:

@@ -1,4 +1,3 @@
-"""Note views."""
 from rest_framework import viewsets, permissions
 from note.models import Note, NoteShare, Category, NoteUpload, FileTypeChoices
 from note.serializers import (
@@ -19,47 +18,62 @@ from rest_framework import status
 from rest_framework.filters import SearchFilter
 from django.core.mail import EmailMessage
 from django.conf import settings
+from note.pagination import NotePagination, CategoryPagination
+from django.template.loader import render_to_string
+import logging
 import magic
 import re
 
+logger = logging.getLogger('note')
 User = get_user_model()
 # Create your views here.
 
 
 class NoteViewSet(viewsets.ModelViewSet):
-    """CRUD endpoints for user's notes."""
 
     serializer_class = NoteSerializer
     permission_classes = [permissions.IsAuthenticated, Owner]
     filter_backends = [SearchFilter]
     search_fields = ["title", "content"]
+    pagination_class = NotePagination
 
     def get_queryset(self):
         """Return notes belonging to the requesting user."""
-        return Note.objects.filter(owner=self.request.user)
+        queryset = Note.objects.filter(owner=self.request.user)
+        pinned = self.request.query_params.get('is_pinned', '').lower()
+        is_pinned = pinned == "true"
+        if is_pinned:
+            queryset = queryset.filter(is_pinned=is_pinned)
+        category = self.request.query_params.get('category', None)
+        
+        if category is not None:
+            queryset = queryset.filter(category=category)
+        return queryset
 
     def perform_create(self, serializer):
-        """Save a new note setting the owner to the requester."""
         serializer.save(owner=self.request.user)
+        logger.info(f'Note created by {self.request.user.email}')
+
+    def perform_destroy(self, instance):
+        """Delete logs."""
+        logger.info(f'Note {instance.id} deleted by {self.request.user.email}')
+        instance.delete()
 
 
 class CategoryViewSet(viewsets.ModelViewSet):
-    """Category Views."""
 
     serializer_class = CategorySerializer
     permission_classes = [permissions.IsAuthenticated]
+    pagination_class = CategoryPagination
 
     def get_queryset(self):
-        """Return categories owned by the requesting user."""
         return Category.objects.filter(owner=self.request.user)
 
     def perform_create(self, serializer):
-        """Save a new category setting the owner to the requester."""
         serializer.save(owner=self.request.user)
 
 
 class NoteShareViewSet(APIView):
-    """Endpoint for sharing a note with another user."""
 
     permission_classes = [permissions.IsAuthenticated]
 
@@ -80,19 +94,15 @@ class NoteShareViewSet(APIView):
         )
 
 
-class RevokeShareView(APIView):
-    """Endpoint to revoke a previously created note share."""
+class DeleteShareView(APIView):
 
     @extend_schema(request=NoteShareSerializer)
     def delete(self, request, id, target_id):
-        """Remove a share record for a note owned by the requester."""
-        note = get_object_or_404(Note, id=id)
-        if note.owner != request.user:
-            return Response(
-                {"error": "you do not own this note"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-        share = NoteShare.objects.filter(note=note, target=target_id)
+        share = NoteShare.objects.filter(
+            note__id=id,
+            note__owner=request.user,
+            target=target_id,
+        )
         if not share.exists():
             return Response(
                 {"error": "Share record not found"},
@@ -106,25 +116,21 @@ class RevokeShareView(APIView):
 
 
 class MySharedNotesView(APIView):
-    """Endpoint for viewing shared notes."""
 
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        """Get shared notes."""
         shares = NoteShare.objects.filter(note__owner=request.user)
         serializer = NoteShareSerializer(shares, many=True)
 
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-class SharedNoteView(APIView):
-    """Endpoint for viewing shared notes."""
+class SharedNotesView(APIView):
 
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        """Get shared notes."""
         notes = Note.objects.filter(shares__target=request.user)
         serializer = NoteSerializer(notes, many=True)
 
@@ -132,7 +138,6 @@ class SharedNoteView(APIView):
 
 
 class NoteUploadViewSet(APIView):
-    """Noteupload views."""
 
     permission_classes = [permissions.IsAuthenticated]
 
@@ -147,14 +152,13 @@ class NoteUploadViewSet(APIView):
         }
     )
     def post(self, request, id):
-        """Upload files."""
-        note = get_object_or_404(Note, id=id, owner=request.user)
         file = request.FILES.get("file")
         if not file:
             return Response(
                 {"error": "No file provided"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        note = get_object_or_404(Note, id=id, owner=request.user)
         file_type = magic.from_buffer(file.read(1024), mime=True)
         file.seek(0)
         Allowed_Types = [choice[0] for choice in FileTypeChoices]
@@ -173,23 +177,18 @@ class NoteUploadViewSet(APIView):
 
     @extend_schema(responses=NoteUploadSerializer(many=True))
     def get(self, request, id):
-        """Get user uploads."""
-        note = get_object_or_404(Note, id=id, owner=request.user)
-        uploads = NoteUpload.objects.filter(note=note)
+        uploads = NoteUpload.objects.filter(note__id=id, note__owner=request.user)
         serializer = NoteUploadSerializer(uploads, many=True)
 
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class SendNoteEmailView(APIView):
-    """Send Note by email."""
 
     permission_classes = [permissions.IsAuthenticated]
 
     @extend_schema(request=SendEmailSerializer)
     def post(self, request, id):
-        """Send note email."""
-        note = get_object_or_404(Note, id=id)
         recipient_email = request.data.get("recipient_email")
         include_attachments = request.data.get("include_attachments", False)
         if not recipient_email:
@@ -197,27 +196,33 @@ class SendNoteEmailView(APIView):
                 {"error": "Recipient email is required"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        note = get_object_or_404(Note, id=id)
         clean_content = re.sub(r"<[^>]+>", "", note.content)
+        html_content = render_to_string('email/sendemail.html', {
+            'title': note.title,
+            'content': clean_content,
+            'link': 'http://localhost:5173/register',
+            'sender': note.owner.email
+        })
         email = EmailMessage(
             subject=f"Note shared with you: {note.title}",
-            body=(
-                f"{note.owner.email} shared this note with you!\n\n"
-                f"Title: {note.title}\n\n"
-                f"Content: {clean_content}\n\n"
-                "Sent Via Multiuser NoteApp"
-            ),
+            body=(html_content),
             from_email=settings.EMAIL_HOST_USER,
             to=[recipient_email],
+            reply_to=[note.owner.email],
         )
+        email.content_subtype = 'html'
         if include_attachments:
             uploads = NoteUpload.objects.filter(note=note)
             for upload in uploads:
                 try:
-                    email.attach_file(upload.file.path)
+                    with upload.file.open('rb') as f:
+                    email.attach_file(upload.file.name,  f.read(), upload.file.field.content_type)
                 except Exception:
-                    pass
+                    logger.error(f"Failed to attach {upload.file.name}: {e}")
         email.send()
         return Response(
             {"message": "Note sent via email successfully"},
             status=status.HTTP_200_OK,
         )
+

@@ -1,11 +1,9 @@
-"""Note Models."""
 from django.db import models
 from django.conf import settings
 from ckeditor.fields import RichTextField
 
 
 class Note(models.Model):
-    """Create note model."""
 
     Content_Type_Choices = [
         ('plain_text', 'Plain Text'),
@@ -39,7 +37,6 @@ class Note(models.Model):
 
 
 class Category(models.Model):
-    """Category models."""
 
     name = models.CharField(max_length=100)
     description = RichTextField(blank=True, null=True)
@@ -54,7 +51,6 @@ class Category(models.Model):
 
 
 class NoteShare(models.Model):
-    """Noteshare model."""
 
     note = models.ForeignKey(
         Note,
@@ -86,7 +82,6 @@ class FileTypeChoices(models.TextChoices):
 
 
 class NoteUpload(models.Model):
-    """NoteUpload models."""
 
     note = models.ForeignKey(
         Note,
