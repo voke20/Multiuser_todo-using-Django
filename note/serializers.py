@@ -1,5 +1,11 @@
 from rest_framework import serializers
-from . models import Note, NoteShare, Category, NoteUpload
+from . models import (
+    Note,
+    NoteShare,
+    Category,
+    NoteUpload,
+    Rating
+)
 
 
 class NoteSerializer(serializers.ModelSerializer):
@@ -61,3 +67,24 @@ class SendEmailSerializer(serializers.Serializer):
     """SendEMail Serializers."""
 
     recipient_email = serializers.EmailField()
+
+
+class RatingSerializer(serializers.ModelSerializer):
+    """Rating Serializers."""
+
+    rating = serializers.IntegerField(
+        min_value=1,
+        max_value=5
+    )
+
+    class Meta:
+
+        model = Rating
+        fields = "__all__"
+        read_only_fields = [
+            'note',
+            'user',
+            'id',
+            'created_at',
+            'updated_at'
+        ]

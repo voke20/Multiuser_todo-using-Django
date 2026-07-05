@@ -68,12 +68,14 @@ class RegisterView(APIView):
                     subject='Welcome to NoteApp! 🎉',
                     body=html_content,
                     from_email=settings.EMAIL_HOST_USER,
-                    to=[User.email],
+                    to=[request.data.get("email")],
                 )
                 email.content_subtype = 'html'
                 email.send()
+                logger.info(f'Welcome email sent successfully to {request.data.get("first_name")}')
             except Exception as e:
                 logger.error(f'Welcome email failed: {e}')
+                # print(f'Failed to send welcome email: {e}')
             return Response({"message": "Registered Successfully"},
                             status=status.HTTP_201_CREATED)
         logger.warning(f'Registration failed: {serializer.errors}')

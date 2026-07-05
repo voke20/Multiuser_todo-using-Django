@@ -95,3 +95,33 @@ class NoteUpload(models.Model):
     def __str__(self):
         """Display NoteUpload object."""
         return f"File for {self.note.title}"
+
+
+class Rating(models.Model):
+
+    note = models.ForeignKey(
+        Note,
+        on_delete=models.CASCADE,
+        related_name='ratings'
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE
+    )
+    rating = models.PositiveSmallIntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['note', 'user'],
+                name='unique_note_user_rating'
+            )
+        ]
+    
+    def __str__(self):
+        return (
+            f'{self.user.email} rated {self.note.title} '
+            f'with {self.rating} stars.'
+        )

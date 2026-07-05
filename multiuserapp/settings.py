@@ -55,7 +55,7 @@ INSTALLED_APPS = [
     "drf_spectacular",
     "ckeditor",
     "django_extensions",
-    "anymail",
+    # "anymail",
 ]
 
 MIDDLEWARE = [
@@ -172,14 +172,14 @@ AUTH_USER_MODEL = "authenticate.CustomerModel"
 
 EMAIL_BACKEND = env('EMAIL_BACKEND')
 # POSTMARK_API_KEY = env("POSTMARK_API_KEY"),
-ANYMAIL = {
-    'RESEND_API_KEY': env('RESEND_API_KEY'),
-}
-# EMAIL_HOST = env("EMAIL_HOST")
-# EMAIL_PORT = env.int("EMAIL_PORT")
-# EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS")
+# ANYMAIL = {
+#     'RESEND_API_KEY': env('RESEND_API_KEY'),
+# }
+EMAIL_HOST = env("EMAIL_HOST")
+EMAIL_PORT = env.int("EMAIL_PORT")
+EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS")
 DEFAULT_FROM_EMAIL = env("EMAIL_HOST_USER")
-# EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD")
 EMAIL_HOST_USER = env('EMAIL_HOST_USER')
 
 LOG_DIR = BASE_DIR / "logs"

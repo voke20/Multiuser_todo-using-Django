@@ -1,5 +1,12 @@
 from rest_framework import viewsets, permissions
-from note.models import Note, NoteShare, Category, NoteUpload, FileTypeChoices
+from note.models import (
+    Note,
+    NoteShare,
+    Category,
+    NoteUpload,
+    FileTypeChoices,
+    Rating,
+)
 from note.serializers import (
     NoteSerializer,
     NoteShareSerializer,
@@ -7,6 +14,7 @@ from note.serializers import (
     NoteUploadSerializer,
     SendEmailSerializer,
     NoteShareRequestSerializer,
+    RatingSerializer
 )
 from note.permissions import Owner
 from rest_framework.views import APIView
@@ -45,7 +53,7 @@ class NoteViewSet(viewsets.ModelViewSet):
         if is_pinned:
             queryset = queryset.filter(is_pinned=is_pinned)
         category = self.request.query_params.get('category', None)
-        
+                
         if category is not None:
             queryset = queryset.filter(category=category)
         return queryset
@@ -226,3 +234,41 @@ class SendNoteEmailView(APIView):
             status=status.HTTP_200_OK,
         )
 
+
+class RateNoteView(APIView):
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    @extend_schema(request=RatingSerializer)
+    def post(self, request, id):
+        note = get_object_or_404(Note, id=id)
+        if note.owner == request.user:
+            return Response(
+                {"error": "You cannot rate your own note"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        serializer = RatingSerializer(data=request.data)
+
+        if serializer.is_valid():
+            # rating_value = serializer.validated_data['rating']
+            rating, created = Rating.objects.update_or_create(
+                note=note,
+                user=request.user,
+                defaults={
+                    'rating': serializer.validated_data['rating']
+                }
+            )
+        return Response(
+            {
+                "message": (
+                    "Rating created"
+                    if created 
+                    else "Rating Updated"
+                )
+            },
+            status=status.HTTP_200_OK
+        )
+    return Response(
+        serializer.errors,
+        status=status.HTTP_400_BAD_REQUEST
+    )
