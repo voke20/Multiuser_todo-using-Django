@@ -37,4 +37,14 @@ urlpatterns = [
         views.SendNoteEmailView.as_view(),
         name="send-note-email",
     ),
+    path(
+        "<int:id>/rate/",
+        views.RateNoteView.as_view(),
+        name="rate-note",
+    ),
+    path(
+        "<int:id>/download/",
+        views.DownloadView.as_view(),
+        name="note-download",
+    ),
 ]

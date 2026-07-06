@@ -28,6 +28,10 @@ from django.core.mail import EmailMessage
 from django.conf import settings
 from note.pagination import NotePagination, CategoryPagination
 from django.template.loader import render_to_string
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
+from django.http import HttpResponse
+from django.db.models import Avg
 import logging
 import magic
 import re
@@ -225,8 +229,9 @@ class SendNoteEmailView(APIView):
             for upload in uploads:
                 try:
                     with upload.file.open('rb') as f:
-                    email.attach_file(upload.file.name,  f.read(), upload.file.field.content_type)
-                except Exception:
+                        email.attach(upload.file.name, f.read(),
+                                     upload.file.field.content_type)
+                except Exception as e:
                     logger.error(f"Failed to attach {upload.file.name}: {e}")
         email.send()
         return Response(
@@ -247,10 +252,17 @@ class RateNoteView(APIView):
                 {"error": "You cannot rate your own note"},
                 status=status.HTTP_400_BAD_REQUEST
             )
+        if not NoteShare.objects.filter(
+            note=note,
+            target=request.user
+        ).exists():
+            return Response(
+                {"error": "This note was not shared to you"},
+                status=status.HTTP_403_FORBIDDEN
+            )
         serializer = RatingSerializer(data=request.data)
-
+        
         if serializer.is_valid():
-            # rating_value = serializer.validated_data['rating']
             rating, created = Rating.objects.update_or_create(
                 note=note,
                 user=request.user,
@@ -258,17 +270,95 @@ class RateNoteView(APIView):
                     'rating': serializer.validated_data['rating']
                 }
             )
+            return Response(
+                {
+                    "message": (
+                        "Rating created"
+                        if created
+                        else "Rating Updated"
+                    )
+                },
+                status=status.HTTP_200_OK
+            )
         return Response(
-            {
-                "message": (
-                    "Rating created"
-                    if created 
-                    else "Rating Updated"
-                )
-            },
-            status=status.HTTP_200_OK
+            serializer.errors,
+            status=status.HTTP_400_BAD_REQUEST
         )
-    return Response(
-        serializer.errors,
-        status=status.HTTP_400_BAD_REQUEST
-    )
+
+    def get(self, request, id):
+        """Get note average rating."""
+        note = get_object_or_404(Note, id=id)
+        ratings = Rating.objects.filter(note=note)
+        avg_rating = ratings.aggregate(Avg('rating'))['rating__avg'] or 0
+        return Response({
+            'average_rating': round(avg_rating, 1),
+            'total_ratings': ratings.count(),
+        }, status=status.HTTP_200_OK)
+
+
+class DownloadView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    @extend_schema(responses={200: "PDF file"})
+    def get(self, request, id):
+        note = None
+        try:
+            note = Note.objects.get(id=id, owner=request.user)
+        except Note.DoesNotExist:
+            # Check if shared with user
+            share = NoteShare.objects.filter(
+                note_id=id,
+                target=request.user
+            ).first()
+            if share:
+                note = share.note
+            else:
+                return Response(
+                    {"error": "Note not found"},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+        # Strip HTML tags
+        clean_content = re.sub(r'<[^>]+>', '', note.content)
+
+        # Create PDF
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="{note.title}.pdf"'
+
+        p = canvas.Canvas(response, pagesize=letter)
+        width, height = letter
+
+        # Title
+        p.setFont("Helvetica-Bold", 16)
+        p.drawString(50, height - 50, note.title)
+
+        # Meta info
+        p.setFont("Helvetica", 10)
+        p.drawString(50, height - 70, f"By: {note.owner.email}")
+        p.drawString(50, height - 85, f"Created: {note.created_at.strftime('%B %d, %Y')}")
+
+        # Content
+        p.setFont("Helvetica", 12)
+        y = height - 120
+
+        # Word wrap content
+        words = clean_content.split()
+        line = ""
+        for word in words:
+            if len(line + word) < 80:
+                line += word + " "
+            else:
+                p.drawString(50, y, line)
+                y -= 20
+                line = word + " "
+                if y < 50:
+                    p.showPage()
+                    y = height - 50
+
+        if line:
+            p.drawString(50, y, line)
+
+        p.showPage()
+        p.save()
+
+        return response
