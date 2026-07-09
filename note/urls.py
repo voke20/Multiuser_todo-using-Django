@@ -1,5 +1,6 @@
 from django.urls import path, include
 from rest_framework import routers
+from authenticate.views import GoogleDriveUploadView
 from . import views
 
 router = routers.DefaultRouter()
@@ -47,4 +48,9 @@ urlpatterns = [
         views.DownloadView.as_view(),
         name="note-download",
     ),
+    path(
+        "<int:id>/drive/",
+        GoogleDriveUploadView.as_view(),
+        name='google-drive-upload',
+    )
 ]

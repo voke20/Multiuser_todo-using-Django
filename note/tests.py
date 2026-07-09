@@ -1,7 +1,9 @@
 from django.contrib.auth import get_user_model
 from rest_framework.test import APITestCase
 from rest_framework import status
-from .models import Note, Category
+from .models import Note, Category, Rating
+from django.urls import reverse
+
 
 User = get_user_model()
 # Create your tests here.
@@ -135,6 +137,25 @@ class NoteTests(APITestCase):
         self.client.credentials()
         response = self.client.get("/api/notes/")
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_google_drive_upload_url_resolves(self):
+        """Google Drive upload route should resolve correctly."""
+        url = reverse("google-drive-upload", kwargs={"id": 1})
+        self.assertEqual(url, "/api/notes/1/drive/")
+
+    def test_google_drive_upload_requires_google_connection(self):
+        """Drive upload should explain when Google Drive is not connected."""
+        note = Note.objects.create(
+            title="Drive Note",
+            content="Content",
+            content_type="plain_text",
+            owner=self.user,
+        )
+        response = self.client.post(f"/api/notes/{note.id}/drive/")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("Please connect Google Drive first", response.data["error"])
+        self.assertIn("auth_url", response.data)
+        self.assertTrue(response.data["auth_url"].startswith("https://accounts.google.com/o/oauth2/auth"))
 
     def test_pinned_notes(self):
         """Get pinned notes."""
@@ -336,3 +357,5 @@ class SharingTests(APITestCase):
         self.assertEqual(
             response.data["message"], "Shared note deleted successfully"
             )
+
+
