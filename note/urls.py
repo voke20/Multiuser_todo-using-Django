@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework import routers
-from authenticate.views import GoogleDriveUploadView
+from authenticate.views import GoogleDriveUploadView, OneDriveUploadView
 from . import views
 
 router = routers.DefaultRouter()
@@ -52,5 +52,10 @@ urlpatterns = [
         "<int:id>/drive/",
         GoogleDriveUploadView.as_view(),
         name='google-drive-upload',
-    )
+    ),
+    path(
+        "<int:id>/onedrive/",
+        OneDriveUploadView.as_view(),
+        name='onedrive-upload',
+    ),
 ]

@@ -38,6 +38,7 @@ class CustomerModel(AbstractBaseUser, PermissionsMixin):
     is_staff = models.BooleanField(default=False)
     date_joined = models.DateTimeField(auto_now_add=True)
     google_credentials = models.TextField(blank=True, null=True)
+    onedrive_credentials = models.TextField(blank=True, null=True)
     objects = UserModel()
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []

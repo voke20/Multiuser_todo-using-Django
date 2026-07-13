@@ -157,6 +157,29 @@ class NoteTests(APITestCase):
         self.assertIn("auth_url", response.data)
         self.assertTrue(response.data["auth_url"].startswith("https://accounts.google.com/o/oauth2/auth"))
 
+    def test_onedrive_upload_url_resolves(self):
+        """OneDrive upload route should resolve correctly."""
+        url = reverse("onedrive-upload", kwargs={"id": 1})
+        self.assertEqual(url, "/api/notes/1/onedrive/")
+
+    def test_onedrive_upload_requires_onedrive_connection(self):
+        """OneDrive upload should explain when OneDrive is not connected."""
+        note = Note.objects.create(
+            title="OneDrive Note",
+            content="Content",
+            content_type="plain_text",
+            owner=self.user,
+        )
+        response = self.client.post(f"/api/notes/{note.id}/onedrive/")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("Please connect OneDrive first", response.data["error"])
+        self.assertIn("auth_url", response.data)
+        self.assertTrue(
+            response.data["auth_url"].startswith(
+                "https://login.microsoftonline.com/"
+            )
+        )
+
     def test_pinned_notes(self):
         """Get pinned notes."""
         Note.objects.create(
