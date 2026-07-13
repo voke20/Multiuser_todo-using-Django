@@ -27,6 +27,11 @@ import json
 import logging
 import base64
 # from django.apps import apps
+import re
+import secrets
+import urllib.parse
+import msal
+import requests
 
 from note.models import Note
 
@@ -34,6 +39,14 @@ logger = logging.getLogger('authenticate')
 User = get_user_model()
 
 SCOPES = ['https://www.googleapis.com/auth/drive.file']
+# MSAL adds 'offline_access', 'openid', and 'profile' automatically for a
+# confidential client app - listing them here makes MSAL raise a ValueError.
+ONEDRIVE_SCOPES = ['Files.ReadWrite']
+ONEDRIVE_FOLDER = 'EmmaNotes'
+GRAPH_UPLOAD_URL = (
+    'https://graph.microsoft.com/v1.0/me/drive/root:/'
+    '{folder}/{filename}:/content'
+)
 
 @extend_schema(
     parameters=[
