@@ -129,15 +129,38 @@ def build_google_auth_url(request):
         scopes=SCOPES,
     )
     flow.redirect_uri = settings.GOOGLE_REDIRECT_URI
+    logger.info(f'redirect_url: {flow.redirect_uri}')
+
+    auth_url = flow.authorization_url(
+        access_type='offline',
+        include_granted_scopes='true',
+    )
+    code_verifier = flow.code_verifier
+    logger.info(f'code_verifier after auth_url: {code_verifier}')
     state_data = json.dumps({
         'user_id': request.user.id,
+        'code_verifier': code_verifier,
         })
-    state = base64.urlsafe_b64encode(state_data.encode()).decode()
+    state = base64.urlsafe_b64encode(
+        state_data.encode()
+        ).decode()
+    logger.info(f'auth_state: {state}')
     auth_url, state = flow.authorization_url(
         access_type='offline',
         include_granted_scopes='true',
         state=state,
     )
+
+    logger.info(f'Final state: {state_data}')
+    # Persist the PKCE code_verifier so it can be used in the callback
+    # try:
+    #     request.session['google_code_verifier'] = flow.code_verifier
+    #     logger.info(f'code-verifier: {flow.code_verifier}')
+    #     logger.info(f"Session key: {request.session.session_key}")
+    #     logger.info(f"Session data: {dict(request.session)}")
+    # except Exception:
+    #     # If sessions are not available for some reason, continue without crash
+    #     logger.warning('Unable to save google_code_verifier to session')
     return auth_url
 
 
@@ -152,7 +175,14 @@ class GoogleAuthView(APIView):
     def get(self, request):
         request.session['google_user_id'] = request.user.id
         auth_url = build_google_auth_url(request)
-        return Response({"auth_url:", auth_url})
+        logger.info(
+            f"AUTH - Session Key: {request.session.session_key}"
+        )
+        logger.info(
+            f"AUTH - Session Data: {dict(request.session)}"
+        )
+        return Response({"auth_url": auth_url})
+    
 
 
 class GoogleCallbackView(APIView):
@@ -160,13 +190,28 @@ class GoogleCallbackView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
+        # logger.info(
+        #     f"CALLBACK - Session Key: {request.session.session_key}"
+        # )
+        # logger.info(
+        #     f"CALLBACK - Session Data: {dict(request.session)}"
+        # )
         state = request.GET.get('state', '')
-        code_verifier = request.GET.get("code_verifier", "")
+        # logger.info(f'callback state: {state}')
+        # # Try to retrieve the PKCE code_verifier from the session first,
+        # # fall back to GET parameter if provided.
+        # code_verifier = request.session.pop('google_code_verifier', None) or request.GET.get("code_verifier", "")
+        # logger.info(f'callback code_verifier: {code_verifier}')
         try:
             state_data = json.loads(base64.urlsafe_b64decode(state).decode())
             user_id = state_data['user_id']
+            code_verifier = state_data.get('code_verifier', '')
+            logger.info(f"Decoded state: {state_data}") 
+            logger.info(f'user_id: {user_id}')
+            logger.info(f'callback verifier: {code_verifier}')
 
-        except Exception:
+        except Exception as e:
+            logger.error(f'State decode error {e}')
             return Response(
                 {'error': 'Invalid state parameter'},
                 status=status.HTTP_400_BAD_REQUEST
@@ -194,7 +239,11 @@ class GoogleCallbackView(APIView):
             state=state
         )
         flow.redirect_uri = settings.GOOGLE_REDIRECT_URI
+        logger.info(f'callback flow.redirect_uri: {flow.redirect_uri}')
+        if not code_verifier:
+            return Response({'error': 'Missing code_verifier'}, status=status.HTTP_400_BAD_REQUEST)
         flow.code_verifier = code_verifier
+        logger.info(f'callback flow.code_verifier: {flow.code_verifier}')
         flow.fetch_token(authorization_response=request.build_absolute_uri())
         credentials = flow.credentials
         user.google_credentials = json.dumps({

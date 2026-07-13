@@ -31,7 +31,9 @@ from django.template.loader import render_to_string
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from django.http import HttpResponse
+from django.utils import timezone
 from django.db.models import Avg
+from weasyprint import HTML
 import logging
 import magic
 import re
@@ -318,47 +320,32 @@ class DownloadView(APIView):
                     status=status.HTTP_404_NOT_FOUND
                 )
 
-        # Strip HTML tags
-        clean_content = re.sub(r'<[^>]+>', '', note.content)
+        # Get category name
+        category_name = note.category.name if note.category else None
 
-        # Create PDF
-        response = HttpResponse(content_type='application/pdf')
+        # Get attachments
+        attachments = []
+        for upload in NoteUpload.objects.filter(note=note):
+            attachments.append({
+                'name': upload.file.name.split('/')[-1]
+            })
+
+        # Render HTML template
+        html_content = render_to_string('pdf/note_pdf.html', {
+            'title': note.title,
+            'content': note.content,
+            'owner': note.owner.get_full_name() or note.owner.email,
+            'created_at': note.created_at.strftime('%B %d, %Y'),
+            'download_date': timezone.now().strftime('%B %d, %Y'),
+            'category': category_name,
+            'is_pinned': note.is_pinned,
+            'attachments': attachments,
+        })
+
+        # Generate PDF
+        pdf = HTML(string=html_content).write_pdf()
+
+        # Return PDF response
+        response = HttpResponse(pdf, content_type='application/pdf')
         response['Content-Disposition'] = f'attachment; filename="{note.title}.pdf"'
-
-        p = canvas.Canvas(response, pagesize=letter)
-        width, height = letter
-
-        # Title
-        p.setFont("Helvetica-Bold", 16)
-        p.drawString(50, height - 50, note.title)
-
-        # Meta info
-        p.setFont("Helvetica", 10)
-        p.drawString(50, height - 70, f"By: {note.owner.email}")
-        p.drawString(50, height - 85, f"Created: {note.created_at.strftime('%B %d, %Y')}")
-
-        # Content
-        p.setFont("Helvetica", 12)
-        y = height - 120
-
-        # Word wrap content
-        words = clean_content.split()
-        line = ""
-        for word in words:
-            if len(line + word) < 80:
-                line += word + " "
-            else:
-                p.drawString(50, y, line)
-                y -= 20
-                line = word + " "
-                if y < 50:
-                    p.showPage()
-                    y = height - 50
-
-        if line:
-            p.drawString(50, y, line)
-
-        p.showPage()
-        p.save()
-
         return response
