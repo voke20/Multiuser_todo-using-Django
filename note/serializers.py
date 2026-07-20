@@ -4,7 +4,8 @@ from . models import (
     NoteShare,
     Category,
     NoteUpload,
-    Rating
+    Rating,
+    NoteSharedHistory,
 )
 
 
@@ -87,4 +88,23 @@ class RatingSerializer(serializers.ModelSerializer):
             'id',
             'created_at',
             'updated_at'
+        ]
+
+
+class NoteSharedHistorySerializer(serializers.ModelSerializer):
+
+    note_title = serializers.CharField(
+        source="note.title",
+        read_only=True
+    )
+
+    class Meta:
+        model = NoteSharedHistory
+        fields = [
+            "id",
+            "note",
+            "note_title",
+            "share_type",
+            "destination",
+            "created_at",
         ]

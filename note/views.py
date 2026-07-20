@@ -6,6 +6,8 @@ from note.models import (
     NoteUpload,
     FileTypeChoices,
     Rating,
+    NoteSharedHistory,
+    SharedTypeChoices
 )
 from note.serializers import (
     NoteSerializer,
@@ -14,7 +16,8 @@ from note.serializers import (
     NoteUploadSerializer,
     SendEmailSerializer,
     NoteShareRequestSerializer,
-    RatingSerializer
+    RatingSerializer,
+    NoteSharedHistorySerializer,
 )
 from note.permissions import Owner
 from rest_framework.views import APIView
@@ -102,6 +105,11 @@ class NoteShareViewSet(APIView):
             )
         target = User.objects.get(id=request.data["target"])
         NoteShare.objects.create(note=note, target=target)
+        NoteSharedHistory.objects.create(
+            note=note,
+            share_type=SharedTypeChoices.NOTE_SHARE,
+            destination=target.email,
+        )
         return Response(
             {"message": "Note shared successfully"},
             status=status.HTTP_201_CREATED,
@@ -135,6 +143,7 @@ class MySharedNotesView(APIView):
 
     def get(self, request):
         shares = NoteShare.objects.filter(note__owner=request.user)
+        logger.info(f"shared notes: {shares}")
         serializer = NoteShareSerializer(shares, many=True)
 
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -146,6 +155,7 @@ class SharedNotesView(APIView):
 
     def get(self, request):
         notes = Note.objects.filter(shares__target=request.user)
+        logger.info(f"shared notes: {notes}")
         serializer = NoteSerializer(notes, many=True)
 
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -236,6 +246,11 @@ class SendNoteEmailView(APIView):
                 except Exception as e:
                     logger.error(f"Failed to attach {upload.file.name}: {e}")
         email.send()
+        NoteSharedHistory.objects.create(
+            note=note,
+            share_type=SharedTypeChoices.EMAIL,
+            destination=recipient_email
+        )
         return Response(
             {"message": "Note sent via email successfully"},
             status=status.HTTP_200_OK,
@@ -349,3 +364,33 @@ class DownloadView(APIView):
         response = HttpResponse(pdf, content_type='application/pdf')
         response['Content-Disposition'] = f'attachment; filename="{note.title}.pdf"'
         return response
+    
+
+class NoteSharedHistoryView(APIView):
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        logger.info(
+            f"Shared history requested by user {request.user.id}"
+        )
+
+        history = NoteSharedHistory.objects.filter(
+            note__owner=request.user
+        ).order_by('-created_at')
+
+        logger.info(
+            f"Found {history.count()} history records"
+        )
+
+        logger.info(
+            f"History IDs: {list(history.values_list('id', flat=True))}"
+        )
+        serializer = NoteSharedHistorySerializer(
+            history,
+            many=True
+        )
+        logger.info(
+            f"Serialized data: {serializer.data}"
+        )
+        return Response(serializer.data)

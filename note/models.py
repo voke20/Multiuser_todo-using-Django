@@ -125,3 +125,36 @@ class Rating(models.Model):
             f'{self.user.email} rated {self.note.title} '
             f'with {self.rating} stars.'
         )
+
+
+class SharedTypeChoices(models.TextChoices):
+    """Share choices for notes"""
+
+    EMAIL = "email", "Email"
+    GOOGLE_DRIVE = "google_drive", "Google Drive"
+    ONEDRIVE = "onedrive", "OneDrive"
+    NOTE_SHARE = "note_share", "Note Share"
+
+class NoteSharedHistory(models.Model):
+
+    note = models.ForeignKey(
+        Note,
+        on_delete=models.CASCADE,
+        related_name='share_history'
+    )
+    share_type = models.CharField(
+        max_length=50,
+        choices=SharedTypeChoices.choices
+    )
+    destination = models.CharField(
+        max_length=255,
+        blank=True
+    )    
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return (
+            f"{self.note.title} shared via "
+            f"{self.get_share_type_display()}"
+        )
+

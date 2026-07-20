@@ -16,17 +16,24 @@ from django.template.loader import render_to_string
 from django.core.mail import EmailMessage
 from django.conf import settings
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
 from rest_framework.permissions import AllowAny
+from weasyprint import HTML
+from note.models import (
+    NoteSharedHistory,
+    SharedTypeChoices,
+    )
+# from django.http import HttpResponseRedirect
 import io
 import json
 import logging
 import base64
 import re
-import secrets
+# import secrets
 import urllib.parse
 import msal
 import requests
@@ -37,8 +44,6 @@ logger = logging.getLogger('authenticate')
 User = get_user_model()
 
 SCOPES = ['https://www.googleapis.com/auth/drive.file']
-# MSAL adds 'offline_access', 'openid', and 'profile' automatically for a
-# confidential client app - listing them here makes MSAL raise a ValueError.
 ONEDRIVE_SCOPES = ['Files.ReadWrite']
 ONEDRIVE_FOLDER = 'EmmaNotes'
 GRAPH_UPLOAD_URL = (
@@ -163,15 +168,6 @@ def build_google_auth_url(request):
     )
 
     logger.info(f'Final state: {state_data}')
-    # Persist the PKCE code_verifier so it can be used in the callback
-    # try:
-    #     request.session['google_code_verifier'] = flow.code_verifier
-    #     logger.info(f'code-verifier: {flow.code_verifier}')
-    #     logger.info(f"Session key: {request.session.session_key}")
-    #     logger.info(f"Session data: {dict(request.session)}")
-    # except Exception:
-    #     # If sessions are not available for some reason, continue without crash
-    #     logger.warning('Unable to save google_code_verifier to session')
     return auth_url
 
 
@@ -186,33 +182,15 @@ class GoogleAuthView(APIView):
     def get(self, request):
         request.session['google_user_id'] = request.user.id
         auth_url = build_google_auth_url(request)
-        logger.info(
-            f"AUTH - Session Key: {request.session.session_key}"
-        )
-        logger.info(
-            f"AUTH - Session Data: {dict(request.session)}"
-        )
         return Response({"auth_url": auth_url})
     
-
 
 class GoogleCallbackView(APIView):
     """Handle Google OAuth callback."""
     permission_classes = [AllowAny]
 
     def get(self, request):
-        # logger.info(
-        #     f"CALLBACK - Session Key: {request.session.session_key}"
-        # )
-        # logger.info(
-        #     f"CALLBACK - Session Data: {dict(request.session)}"
-        # )
         state = request.GET.get('state', '')
-        # logger.info(f'callback state: {state}')
-        # # Try to retrieve the PKCE code_verifier from the session first,
-        # # fall back to GET parameter if provided.
-        # code_verifier = request.session.pop('google_code_verifier', None) or request.GET.get("code_verifier", "")
-        # logger.info(f'callback code_verifier: {code_verifier}')
         try:
             state_data = json.loads(base64.urlsafe_b64decode(state).decode())
             user_id = state_data['user_id']
@@ -313,15 +291,29 @@ class GoogleDriveUploadView(APIView):
 
         service = build('drive', 'v3', credentials=credentials)
 
-        # Create note content
-        import re
-        clean_content = re.sub(r'<[^>]+>', '', note.content)
-        note_content = f"Title: {note.title}\n\nContent:\n{clean_content}"
+        category_name = note.category.name if note.category else None
+        attachments = []
+        for upload in note.uploads.all():
+            attachments.append({
+                'name': upload.file.name.split('/')[-1]
+            })
 
-        file_metadata = {'name': f'{note.title}.txt'}
+        html_content = render_to_string('pdf/note_pdf.html', {
+            'title': note.title,
+            'content': note.content,
+            'owner': note.owner.get_full_name() or note.owner.email,
+            'created_at': note.created_at.strftime('%B %d, %Y'),
+            'download_date': timezone.now().strftime('%B %d, %Y'),
+            'category': category_name,
+            'is_pinned': note.is_pinned,
+            'attachments': attachments,
+        })
+        pdf_bytes = HTML(string=html_content).write_pdf()
+
+        file_metadata = {'name': f'{note.title}.pdf'}
         media = MediaIoBaseUpload(
-            io.BytesIO(note_content.encode()),
-            mimetype='text/plain'
+            io.BytesIO(pdf_bytes),
+            mimetype='application/pdf'
         )
 
         file = service.files().create(
@@ -329,6 +321,11 @@ class GoogleDriveUploadView(APIView):
             media_body=media,
             fields='id, webViewLink'
         ).execute()
+        NoteSharedHistory.objects.create(
+            note=note,
+            share_type=SharedTypeChoices.GOOGLE_DRIVE,
+            destination=file.get("webViewLink")
+        )
 
         return Response({
             'message': 'Note uploaded to Google Drive!',
@@ -349,78 +346,29 @@ def get_msal_app():
 
 
 def build_onedrive_auth_url(request):
-    """Create a Microsoft OAuth authorization URL for the current user.
+    """Create a Microsoft OAuth authorization URL and persist the state."""
+    state_data = json.dumps({'user_id': request.user.id})
+    state = base64.urlsafe_b64encode(state_data.encode()).decode()
+    logger.info(f'onedrive_auth_state: {state}')
 
-    We generate a random `state` value and remember it (and who is logging
-    in) in the user's Django session. When Microsoft redirects the browser
-    back to our callback, we check the state it sends matches what we saved.
-    This proves the callback belongs to the same browser that started the
-    flow, so a stranger can't link their own Microsoft account to someone
-    else's notes by guessing a user id.
-    """
-    state = secrets.token_urlsafe(16)
-    request.session['onedrive_state'] = state
-    request.session['onedrive_user_id'] = request.user.id
     return get_msal_app().get_authorization_request_url(
         scopes=ONEDRIVE_SCOPES,
         state=state,
         redirect_uri=settings.MICROSOFT_REDIRECT_URI,
     )
-
-
-def sanitize_onedrive_filename(title, note_id):
-    """Turn a note title into a safe OneDrive filename.
-
-    The note id is appended so two notes with the same title don't
-    overwrite each other in OneDrive.
-    """
-    cleaned = re.sub(r'[\\/:*?"<>|]', '_', title).strip() or 'note'
-    return f"{cleaned}-{note_id}.txt"
-
-
-def save_onedrive_credentials(user, token_result):
-    """Persist Graph tokens on the user (no client_secret stored)."""
-    user.onedrive_credentials = json.dumps({
-        'access_token': token_result.get('access_token'),
-        'refresh_token': token_result.get('refresh_token'),
-    })
-    user.save(update_fields=['onedrive_credentials'])
-
-
-def refresh_onedrive_access_token(user, refresh_token):
-    """Use the refresh token to get a new access token and save it.
-
-    Returns the new access token, or None if the refresh token itself is no
-    longer valid (the user will need to reconnect OneDrive).
-    """
-    result = get_msal_app().acquire_token_by_refresh_token(
-        refresh_token,
-        scopes=ONEDRIVE_SCOPES,
-    )
-    if 'access_token' not in result:
-        logger.error('OneDrive token refresh failed: %s', result.get('error'))
-        user.onedrive_credentials = None
-        user.save(update_fields=['onedrive_credentials'])
-        return None
-
-    # MSAL doesn't always return a new refresh token; keep the old one.
-    result.setdefault('refresh_token', refresh_token)
-    save_onedrive_credentials(user, result)
-    return result['access_token']
-
+    
 
 class OneDriveAuthView(APIView):
     """Initiate Microsoft OneDrive OAuth flow."""
-
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        return Response({"auth_url": build_onedrive_auth_url(request)})
+        auth_url = build_onedrive_auth_url(request)
+        return Response({"auth_url": auth_url})
 
 
 class OneDriveCallbackView(APIView):
-    """Handle Microsoft OAuth callback and store tokens."""
-
+    """Handle Microsoft OAuth callback."""
     permission_classes = [AllowAny]
 
     def get(self, request):
@@ -431,23 +379,17 @@ class OneDriveCallbackView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # The state and user id were stashed in the session when the flow
-        # started. If they're missing or don't match, this callback wasn't
-        # triggered by a flow we started for this browser - reject it.
-        # We only read (not clear) the session here: an unrelated or wrong
-        # request must never wipe out someone else's in-progress login.
         state = request.GET.get('state', '')
-        expected_state = request.session.get('onedrive_state')
-        user_id = request.session.get('onedrive_user_id')
-        if not expected_state or state != expected_state or not user_id:
+        try:
+            state_data = json.loads(base64.urlsafe_b64decode(state).decode())
+            user_id = state_data['user_id']
+            logger.info(f"Decoded state: {state_data}")
+        except Exception as e:
+            logger.error(f'State decode error {e}')
             return Response(
-                {'error': 'Invalid or expired state parameter'},
-                status=status.HTTP_400_BAD_REQUEST,
+                {'error': 'Invalid state parameter'},
+                status=status.HTTP_400_BAD_REQUEST
             )
-
-        # Valid - clear it now so this exact callback can't be replayed.
-        del request.session['onedrive_state']
-        del request.session['onedrive_user_id']
 
         try:
             user = User.objects.get(id=user_id)
@@ -462,6 +404,8 @@ class OneDriveCallbackView(APIView):
             scopes=ONEDRIVE_SCOPES,
             redirect_uri=settings.MICROSOFT_REDIRECT_URI,
         )
+        logger.info(f"OneDrive token result keys: {list(result.keys())}")
+        logger.info(f"Has refresh_token: {'refresh_token' in result}")
         if 'access_token' not in result:
             logger.error(
                 'OneDrive token exchange failed: %s',
@@ -472,33 +416,27 @@ class OneDriveCallbackView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        save_onedrive_credentials(user, result)
-        return Response(
-            {'message': 'OneDrive connected!'},
-            status=status.HTTP_200_OK,
+        # Persist Graph tokens on the user (no client_secret to store).
+        user.onedrive_credentials = json.dumps({
+            'access_token': result.get('access_token'),
+            'refresh_token': result.get('refresh_token'),
+        })
+        logger.info(
+            f"Saving OneDrive credentials for user {user.id}: "
+            f"{user.onedrive_credentials}"
         )
+        user.save()
+        user.refresh_from_db()
 
-
-def put_note_on_onedrive(access_token, filename, note_content):
-    """Upload note text to OneDrive via the Microsoft Graph API."""
-    upload_url = GRAPH_UPLOAD_URL.format(
-        folder=ONEDRIVE_FOLDER,
-        filename=urllib.parse.quote(filename),
-    )
-    return requests.put(
-        upload_url,
-        headers={
-            'Authorization': f'Bearer {access_token}',
-            'Content-Type': 'text/plain',
-        },
-        data=note_content.encode('utf-8'),
-        timeout=30,
-    )
+        logger.info(
+            f"Credentials after save: "
+            f"{user.onedrive_credentials}"
+        )
+        return Response({'message': 'OneDrive connected!'}, status=status.HTTP_200_OK)
 
 
 class OneDriveUploadView(APIView):
     """Upload note to OneDrive via Microsoft Graph."""
-
     permission_classes = [IsAuthenticated]
 
     @extend_schema(
@@ -511,7 +449,15 @@ class OneDriveUploadView(APIView):
         responses={200: {"description": "Note uploaded to OneDrive"}},
     )
     def post(self, request, id):
+        logger.info(
+            f"OneDrive upload hit by user {request.user.id}"
+        )
+
         note = get_object_or_404(Note, id=id, owner=request.user)
+        logger.info(
+            f"User {request.user.id} OneDrive credentials: "
+            f"{request.user.onedrive_credentials}"
+        )
 
         if not request.user.onedrive_credentials:
             return Response(
@@ -519,25 +465,79 @@ class OneDriveUploadView(APIView):
                     "error": "Please connect OneDrive first",
                     "auth_url": build_onedrive_auth_url(request),
                 },
-                status=status.HTTP_400_BAD_REQUEST,
+                status=status.HTTP_400_BAD_REQUEST
             )
 
-        creds = json.loads(request.user.onedrive_credentials)
+        try:
+            creds = json.loads(request.user.onedrive_credentials)
+            access_token = creds['access_token']
+            profile_response = requests.get(
+                "https://graph.microsoft.com/v1.0/me",
+                headers={
+                    "Authorization": f"Bearer {access_token}"
+                },
+                timeout=30,
+            )
+
+            logger.info(
+                f"ME endpoint: {profile_response.status_code} "
+                f"{profile_response.text}"
+            )
+
+            drive_response = requests.get(
+                "https://graph.microsoft.com/v1.0/me/drive",
+                headers={
+                    "Authorization": f"Bearer {access_token}"
+                },
+                timeout=30,
+            )
+
+            logger.info(
+                f"DRIVE endpoint: {drive_response.status_code} "
+                f"{drive_response.text}"
+            )
+        except (TypeError, ValueError, KeyError):
+            return Response(
+                {
+                    "error": "Please connect OneDrive first",
+                    "auth_url": build_onedrive_auth_url(request),
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         clean_content = re.sub(r'<[^>]+>', '', note.content)
         note_content = f"Title: {note.title}\n\nContent:\n{clean_content}"
-        filename = sanitize_onedrive_filename(note.title, note.id)
 
-        response = put_note_on_onedrive(
-            creds['access_token'], filename, note_content
+        # Turn the note title into a safe OneDrive filename. The note id is
+        # appended so two notes with the same title don't overwrite each other.
+        clean_title = re.sub(r'[\\/:*?"<>|]', '_', note.title).strip() or 'note'
+        filename = f"{clean_title}-{note.id}.txt"
+
+        upload_url = GRAPH_UPLOAD_URL.format(
+            folder=ONEDRIVE_FOLDER,
+            filename=urllib.parse.quote(filename),
+        )
+        response = requests.put(
+            upload_url,
+            headers={
+                'Authorization': f'Bearer {access_token}',
+                'Content-Type': 'text/plain',
+            },
+            data=note_content.encode('utf-8'),
+            timeout=30,
         )
 
         # Access tokens expire after about an hour. If Graph rejects it,
         # use the refresh token to get a new one and try once more.
         if response.status_code in (401, 403):
-            new_access_token = refresh_onedrive_access_token(
-                request.user, creds.get('refresh_token')
+            refresh_result = get_msal_app().acquire_token_by_refresh_token(
+                creds.get('refresh_token'),
+                scopes=ONEDRIVE_SCOPES,
             )
-            if not new_access_token:
+            if 'access_token' not in refresh_result:
+                logger.error('OneDrive token refresh failed: %s', refresh_result.get('error'))
+                request.user.onedrive_credentials = None
+                request.user.save()
                 return Response(
                     {
                         "error": "Please connect OneDrive first",
@@ -545,8 +545,23 @@ class OneDriveUploadView(APIView):
                     },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            response = put_note_on_onedrive(
-                new_access_token, filename, note_content
+
+            # MSAL doesn't always return a new refresh token; keep the old one.
+            refresh_result.setdefault('refresh_token', creds.get('refresh_token'))
+            request.user.onedrive_credentials = json.dumps({
+                'access_token': refresh_result.get('access_token'),
+                'refresh_token': refresh_result.get('refresh_token'),
+            })
+            request.user.save()
+
+            response = requests.put(
+                upload_url,
+                headers={
+                    'Authorization': f'Bearer {refresh_result["access_token"]}',
+                    'Content-Type': 'text/plain',
+                },
+                data=note_content.encode('utf-8'),
+                timeout=30,
             )
 
         if response.status_code not in (200, 201):
@@ -561,6 +576,11 @@ class OneDriveUploadView(APIView):
             )
 
         file_data = response.json()
+        NoteSharedHistory.objects.create(
+            note=note,
+            share_type=SharedTypeChoices.ONEDRIVE,
+            destination=file_data.get('webUrl', '')
+        )
         return Response(
             {
                 'message': 'Note uploaded to OneDrive!',

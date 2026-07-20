@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
 from rest_framework.test import APITestCase
 from rest_framework import status
-from .models import Note, Category, Rating
+from .models import Note, Category, Rating, NoteSharedHistory
 from django.urls import reverse
 
 
@@ -200,6 +200,41 @@ class NoteTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["count"], 1)
         self.assertEqual(response.data["results"][0]["title"], "Pinned Note")
+
+    def test_shared_history_endpoint_returns_list(self):
+        """The shared-history route should resolve to the history view."""
+        response = self.client.get("/api/notes/shared-history/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, [])
+
+    def test_sharing_note_creates_history_entry(self):
+        """Sharing a note should appear in the shared-history endpoint."""
+        target_user = User.objects.create_user(
+            email="target@example.com",
+            password="secret123",
+        )
+        note = Note.objects.create(
+            title="Share Me",
+            content="Content",
+            content_type="plain_text",
+            owner=self.user,
+        )
+
+        response = self.client.post(
+            f"/api/notes/{note.id}/share/",
+            {"target": target_user.id},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(
+            NoteSharedHistory.objects.filter(note=note).exists()
+        )
+
+        history_response = self.client.get("/api/notes/shared-history/")
+        self.assertEqual(history_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(history_response.data), 1)
+        self.assertEqual(history_response.data[0]["note"], note.id)
 
 
 class CategoryTest(APITestCase):

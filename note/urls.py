@@ -17,6 +17,11 @@ urlpatterns = [
         views.SharedNotesView.as_view(),
         name="shared-notes"
     ),
+    path(
+        "shared-history/",
+        views.NoteSharedHistoryView.as_view(),
+        name="shared-history"
+    ),
     path("", include(router.urls)),
     path(
         "<int:id>/share/",
