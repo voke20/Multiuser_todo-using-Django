@@ -95,3 +95,66 @@ class NoteUpload(models.Model):
     def __str__(self):
         """Display NoteUpload object."""
         return f"File for {self.note.title}"
+
+
+class Rating(models.Model):
+
+    note = models.ForeignKey(
+        Note,
+        on_delete=models.CASCADE,
+        related_name='ratings'
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE
+    )
+    rating = models.PositiveSmallIntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['note', 'user'],
+                name='unique_note_user_rating'
+            )
+        ]
+    
+    def __str__(self):
+        return (
+            f'{self.user.email} rated {self.note.title} '
+            f'with {self.rating} stars.'
+        )
+
+
+class SharedTypeChoices(models.TextChoices):
+    """Share choices for notes"""
+
+    EMAIL = "email", "Email"
+    GOOGLE_DRIVE = "google_drive", "Google Drive"
+    ONEDRIVE = "onedrive", "OneDrive"
+    NOTE_SHARE = "note_share", "Note Share"
+
+class NoteSharedHistory(models.Model):
+
+    note = models.ForeignKey(
+        Note,
+        on_delete=models.CASCADE,
+        related_name='share_history'
+    )
+    share_type = models.CharField(
+        max_length=50,
+        choices=SharedTypeChoices.choices
+    )
+    destination = models.CharField(
+        max_length=255,
+        blank=True
+    )    
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return (
+            f"{self.note.title} shared via "
+            f"{self.get_share_type_display()}"
+        )
+

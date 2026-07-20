@@ -1,5 +1,14 @@
 from rest_framework import viewsets, permissions
-from note.models import Note, NoteShare, Category, NoteUpload, FileTypeChoices
+from note.models import (
+    Note,
+    NoteShare,
+    Category,
+    NoteUpload,
+    FileTypeChoices,
+    Rating,
+    NoteSharedHistory,
+    SharedTypeChoices
+)
 from note.serializers import (
     NoteSerializer,
     NoteShareSerializer,
@@ -7,6 +16,8 @@ from note.serializers import (
     NoteUploadSerializer,
     SendEmailSerializer,
     NoteShareRequestSerializer,
+    RatingSerializer,
+    NoteSharedHistorySerializer,
 )
 from note.permissions import Owner
 from rest_framework.views import APIView
@@ -20,6 +31,12 @@ from django.core.mail import EmailMessage
 from django.conf import settings
 from note.pagination import NotePagination, CategoryPagination
 from django.template.loader import render_to_string
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
+from django.http import HttpResponse
+from django.utils import timezone
+from django.db.models import Avg
+from weasyprint import HTML
 import logging
 import magic
 import re
@@ -45,7 +62,7 @@ class NoteViewSet(viewsets.ModelViewSet):
         if is_pinned:
             queryset = queryset.filter(is_pinned=is_pinned)
         category = self.request.query_params.get('category', None)
-        
+                
         if category is not None:
             queryset = queryset.filter(category=category)
         return queryset
@@ -88,6 +105,11 @@ class NoteShareViewSet(APIView):
             )
         target = User.objects.get(id=request.data["target"])
         NoteShare.objects.create(note=note, target=target)
+        NoteSharedHistory.objects.create(
+            note=note,
+            share_type=SharedTypeChoices.NOTE_SHARE,
+            destination=target.email,
+        )
         return Response(
             {"message": "Note shared successfully"},
             status=status.HTTP_201_CREATED,
@@ -121,6 +143,7 @@ class MySharedNotesView(APIView):
 
     def get(self, request):
         shares = NoteShare.objects.filter(note__owner=request.user)
+        logger.info(f"shared notes: {shares}")
         serializer = NoteShareSerializer(shares, many=True)
 
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -132,6 +155,7 @@ class SharedNotesView(APIView):
 
     def get(self, request):
         notes = Note.objects.filter(shares__target=request.user)
+        logger.info(f"shared notes: {notes}")
         serializer = NoteSerializer(notes, many=True)
 
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -217,12 +241,156 @@ class SendNoteEmailView(APIView):
             for upload in uploads:
                 try:
                     with upload.file.open('rb') as f:
-                    email.attach_file(upload.file.name,  f.read(), upload.file.field.content_type)
-                except Exception:
+                        email.attach(upload.file.name, f.read(),
+                                     upload.file.field.content_type)
+                except Exception as e:
                     logger.error(f"Failed to attach {upload.file.name}: {e}")
         email.send()
+        NoteSharedHistory.objects.create(
+            note=note,
+            share_type=SharedTypeChoices.EMAIL,
+            destination=recipient_email
+        )
         return Response(
             {"message": "Note sent via email successfully"},
             status=status.HTTP_200_OK,
         )
 
+
+class RateNoteView(APIView):
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    @extend_schema(request=RatingSerializer)
+    def post(self, request, id):
+        note = get_object_or_404(Note, id=id)
+        if note.owner == request.user:
+            return Response(
+                {"error": "You cannot rate your own note"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        if not NoteShare.objects.filter(
+            note=note,
+            target=request.user
+        ).exists():
+            return Response(
+                {"error": "This note was not shared to you"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        serializer = RatingSerializer(data=request.data)
+        
+        if serializer.is_valid():
+            rating, created = Rating.objects.update_or_create(
+                note=note,
+                user=request.user,
+                defaults={
+                    'rating': serializer.validated_data['rating']
+                }
+            )
+            return Response(
+                {
+                    "message": (
+                        "Rating created"
+                        if created
+                        else "Rating Updated"
+                    )
+                },
+                status=status.HTTP_200_OK
+            )
+        return Response(
+            serializer.errors,
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    def get(self, request, id):
+        """Get note average rating."""
+        note = get_object_or_404(Note, id=id)
+        ratings = Rating.objects.filter(note=note)
+        avg_rating = ratings.aggregate(Avg('rating'))['rating__avg'] or 0
+        return Response({
+            'average_rating': round(avg_rating, 1),
+            'total_ratings': ratings.count(),
+        }, status=status.HTTP_200_OK)
+
+
+class DownloadView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    @extend_schema(responses={200: "PDF file"})
+    def get(self, request, id):
+        note = None
+        try:
+            note = Note.objects.get(id=id, owner=request.user)
+        except Note.DoesNotExist:
+            # Check if shared with user
+            share = NoteShare.objects.filter(
+                note_id=id,
+                target=request.user
+            ).first()
+            if share:
+                note = share.note
+            else:
+                return Response(
+                    {"error": "Note not found"},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+        # Get category name
+        category_name = note.category.name if note.category else None
+
+        # Get attachments
+        attachments = []
+        for upload in NoteUpload.objects.filter(note=note):
+            attachments.append({
+                'name': upload.file.name.split('/')[-1]
+            })
+
+        # Render HTML template
+        html_content = render_to_string('pdf/note_pdf.html', {
+            'title': note.title,
+            'content': note.content,
+            'owner': note.owner.get_full_name() or note.owner.email,
+            'created_at': note.created_at.strftime('%B %d, %Y'),
+            'download_date': timezone.now().strftime('%B %d, %Y'),
+            'category': category_name,
+            'is_pinned': note.is_pinned,
+            'attachments': attachments,
+        })
+
+        # Generate PDF
+        pdf = HTML(string=html_content).write_pdf()
+
+        # Return PDF response
+        response = HttpResponse(pdf, content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="{note.title}.pdf"'
+        return response
+    
+
+class NoteSharedHistoryView(APIView):
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        logger.info(
+            f"Shared history requested by user {request.user.id}"
+        )
+
+        history = NoteSharedHistory.objects.filter(
+            note__owner=request.user
+        ).order_by('-created_at')
+
+        logger.info(
+            f"Found {history.count()} history records"
+        )
+
+        logger.info(
+            f"History IDs: {list(history.values_list('id', flat=True))}"
+        )
+        serializer = NoteSharedHistorySerializer(
+            history,
+            many=True
+        )
+        logger.info(
+            f"Serialized data: {serializer.data}"
+        )
+        return Response(serializer.data)

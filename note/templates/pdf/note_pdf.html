@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background: #f8f8ff;
+      color: #1a1a2e;
+    }
+
+    /* Header */
+    .header {
+      background: linear-gradient(135deg, #2d1b69, #6b3fa0);
+      color: white;
+      padding: 30px 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header-logo {
+      font-size: 24px;
+      font-weight: bold;
+    }
+
+    .header-date {
+      font-size: 12px;
+      opacity: 0.8;
+    }
+
+    /* Note Meta */
+    .meta-section {
+      background: white;
+      padding: 30px 40px;
+      border-bottom: 2px solid #f0e6ff;
+    }
+
+    .note-title {
+      font-size: 28px;
+      font-weight: bold;
+      color: #1a1a2e;
+      margin-bottom: 16px;
+    }
+
+    .meta-item {
+      display: inline-block;
+      margin-right: 24px;
+      font-size: 13px;
+      color: #666;
+    }
+
+    .meta-label {
+      font-weight: bold;
+      color: #6b3fa0;
+    }
+
+    .category-badge {
+      display: inline-block;
+      background: #f0e6ff;
+      color: #6b3fa0;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    /* Content */
+    .content-section {
+      background: white;
+      padding: 30px 40px;
+      margin: 20px;
+      border-radius: 10px;
+      min-height: 400px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .content-section p {
+      font-size: 14px;
+      line-height: 1.8;
+      color: #333;
+      margin-bottom: 12px;
+    }
+
+    .content-section h1,
+    .content-section h2,
+    .content-section h3 {
+      color: #6b3fa0;
+      margin-bottom: 12px;
+      margin-top: 20px;
+    }
+
+    .content-section ul,
+    .content-section ol {
+      padding-left: 20px;
+      margin-bottom: 12px;
+    }
+
+    .content-section li {
+      font-size: 14px;
+      line-height: 1.8;
+      color: #333;
+    }
+
+    .content-section blockquote {
+      border-left: 4px solid #6b3fa0;
+      padding: 10px 20px;
+      background: #f5f0ff;
+      border-radius: 0 8px 8px 0;
+      margin: 16px 0;
+      color: #555;
+      font-style: italic;
+    }
+
+    /* Attachments */
+    .attachments-section {
+      background: white;
+      padding: 20px 40px;
+      margin: 0 20px 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .attachments-title {
+      font-size: 16px;
+      font-weight: bold;
+      color: #6b3fa0;
+      margin-bottom: 12px;
+    }
+
+    .attachment-item {
+      display: flex;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: 13px;
+      color: #555;
+    }
+
+    .attachment-icon {
+      margin-right: 10px;
+    }
+
+    /* Footer */
+    .footer {
+      background: linear-gradient(135deg, #2d1b69, #6b3fa0);
+      color: white;
+      padding: 20px 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      margin-top: 20px;
+    }
+
+    .footer-logo {
+      font-weight: bold;
+    }
+
+    .footer-text {
+      opacity: 0.8;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-logo">📝 NoteApp</div>
+    <div class="header-date">Downloaded: {{ download_date }}</div>
+  </div>
+
+  <!-- Meta Section -->
+  <div class="meta-section">
+    <h1 class="note-title">{{ title }}</h1>
+    <div>
+      <span class="meta-item">
+        <span class="meta-label">By:</span> {{ owner }}
+      </span>
+      <span class="meta-item">
+        <span class="meta-label">Created:</span> {{ created_at }}
+      </span>
+      {% if category %}
+      <span class="meta-item">
+        <span class="meta-label">Category:</span>
+        <span class="category-badge">{{ category }}</span>
+      </span>
+      {% endif %}
+      {% if is_pinned %}
+      <span class="meta-item">📌 Pinned</span>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="content-section">
+    {{ content|safe }}
+  </div>
+
+  <!-- Attachments -->
+  {% if attachments %}
+  <div class="attachments-section">
+    <div class="attachments-title">📎 Attachments</div>
+    {% for attachment in attachments %}
+    <div class="attachment-item">
+      <span class="attachment-icon">📄</span>
+      {{ attachment.name }}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Footer -->
+  <div class="footer">
+    <div class="footer-logo">📝 NoteApp</div>
+    <div class="footer-text">This note was exported from NoteApp</div>
+  </div>
+
+</body>
+</html>

@@ -15,6 +15,8 @@ from datetime import timedelta
 import os
 import environ
 
+os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -34,7 +36,7 @@ SECRET_KEY = env("SECRET_KEY")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env("DEBUG")
 
-ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", "amino-reverend-subsoil.ngrok-free.dev"]
 
 
 # Application definition
@@ -55,14 +57,14 @@ INSTALLED_APPS = [
     "drf_spectacular",
     "ckeditor",
     "django_extensions",
-    "anymail",
+    # "anymail",
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
-    "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
@@ -135,20 +137,45 @@ USE_I18N = True
 USE_TZ = True
 
 
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = "static/"
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
+# CORS Configuration
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
 ]
 
+CORS_TRUSTED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+# Add ngrok URL if available
+if env("NGROK_URL", default=""):
+    CORS_ALLOWED_ORIGINS.append(f"https://{env('NGROK_URL')}")
+
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_HEADERS = [
+    "accept",
+    "authorization",
+    "content-type",
+    "origin",
+    "x-csrftoken",
+    "x-requested-with",
+]
+CORS_EXPOSE_HEADERS = ["Content-Type", "X-CSRFToken"]
+
+CORS_ALLOW_METHODS = (
+    "DELETE",
+    "GET",
+    "OPTIONS",
+    "PATCH",
+    "POST",
+    "PUT",
+)
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
@@ -163,7 +190,7 @@ SIMPLE_JWT = {
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
-    "AUTH_HEADER_TYPES": ("Bearer",),
+    "AUTH_HEADER_TYPES": ("Bearer"),
 }
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
@@ -172,14 +199,14 @@ AUTH_USER_MODEL = "authenticate.CustomerModel"
 
 EMAIL_BACKEND = env('EMAIL_BACKEND')
 # POSTMARK_API_KEY = env("POSTMARK_API_KEY"),
-ANYMAIL = {
-    'RESEND_API_KEY': env('RESEND_API_KEY'),
-}
-# EMAIL_HOST = env("EMAIL_HOST")
-# EMAIL_PORT = env.int("EMAIL_PORT")
-# EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS")
+# ANYMAIL = {
+#     'RESEND_API_KEY': env('RESEND_API_KEY'),
+# }
+EMAIL_HOST = env("EMAIL_HOST")
+EMAIL_PORT = env.int("EMAIL_PORT")
+EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS")
 DEFAULT_FROM_EMAIL = env("EMAIL_HOST_USER")
-# EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD")
 EMAIL_HOST_USER = env('EMAIL_HOST_USER')
 
 LOG_DIR = BASE_DIR / "logs"
@@ -224,3 +251,22 @@ LOGGING = {
         },
     },
 }
+
+# ==================== GOOGLE DRIVE ====================
+GOOGLE_CLIENT_ID = env('GOOGLE_CLIENT_ID')
+GOOGLE_CLIENT_SECRET = env('GOOGLE_CLIENT_SECRET')
+GOOGLE_REDIRECT_URI = env('GOOGLE_REDIRECT_URI')
+
+# ==================== ONEDRIVE / MICROSOFT GRAPH ====================
+MICROSOFT_CLIENT_ID = env('MICROSOFT_CLIENT_ID')
+MICROSOFT_CLIENT_SECRET = env('MICROSOFT_CLIENT_SECRET')
+MICROSOFT_REDIRECT_URI = env('MICROSOFT_REDIRECT_URI')
+MICROSOFT_TENANT_ID = env('MICROSOFT_TENANT_ID', default='common')
+
+SESSION_COOKIE_NAME = "sessionid"
+SESSION_COOKIE_AGE = 1209600
+SESSION_COOKIE_PATH = "/"
+SESSION_COOKIE_DOMAIN = None
+SESSION_COOKIE_SECURE = False
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"

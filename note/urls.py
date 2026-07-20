@@ -1,5 +1,6 @@
 from django.urls import path, include
 from rest_framework import routers
+from authenticate.views import GoogleDriveUploadView, OneDriveUploadView
 from . import views
 
 router = routers.DefaultRouter()
@@ -15,6 +16,11 @@ urlpatterns = [
         "shared/",
         views.SharedNotesView.as_view(),
         name="shared-notes"
+    ),
+    path(
+        "shared-history/",
+        views.NoteSharedHistoryView.as_view(),
+        name="shared-history"
     ),
     path("", include(router.urls)),
     path(
@@ -36,5 +42,25 @@ urlpatterns = [
         "<int:id>/send-email/",
         views.SendNoteEmailView.as_view(),
         name="send-note-email",
+    ),
+    path(
+        "<int:id>/rate/",
+        views.RateNoteView.as_view(),
+        name="rate-note",
+    ),
+    path(
+        "<int:id>/download/",
+        views.DownloadView.as_view(),
+        name="note-download",
+    ),
+    path(
+        "<int:id>/drive/",
+        GoogleDriveUploadView.as_view(),
+        name='google-drive-upload',
+    ),
+    path(
+        "<int:id>/onedrive/",
+        OneDriveUploadView.as_view(),
+        name='onedrive-upload',
     ),
 ]

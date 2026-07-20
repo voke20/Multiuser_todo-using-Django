@@ -1,7 +1,9 @@
 from django.contrib.auth import get_user_model
 from rest_framework.test import APITestCase
 from rest_framework import status
-from .models import Note, Category
+from .models import Note, Category, Rating, NoteSharedHistory
+from django.urls import reverse
+
 
 User = get_user_model()
 # Create your tests here.
@@ -136,6 +138,48 @@ class NoteTests(APITestCase):
         response = self.client.get("/api/notes/")
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
+    def test_google_drive_upload_url_resolves(self):
+        """Google Drive upload route should resolve correctly."""
+        url = reverse("google-drive-upload", kwargs={"id": 1})
+        self.assertEqual(url, "/api/notes/1/drive/")
+
+    def test_google_drive_upload_requires_google_connection(self):
+        """Drive upload should explain when Google Drive is not connected."""
+        note = Note.objects.create(
+            title="Drive Note",
+            content="Content",
+            content_type="plain_text",
+            owner=self.user,
+        )
+        response = self.client.post(f"/api/notes/{note.id}/drive/")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("Please connect Google Drive first", response.data["error"])
+        self.assertIn("auth_url", response.data)
+        self.assertTrue(response.data["auth_url"].startswith("https://accounts.google.com/o/oauth2/auth"))
+
+    def test_onedrive_upload_url_resolves(self):
+        """OneDrive upload route should resolve correctly."""
+        url = reverse("onedrive-upload", kwargs={"id": 1})
+        self.assertEqual(url, "/api/notes/1/onedrive/")
+
+    def test_onedrive_upload_requires_onedrive_connection(self):
+        """OneDrive upload should explain when OneDrive is not connected."""
+        note = Note.objects.create(
+            title="OneDrive Note",
+            content="Content",
+            content_type="plain_text",
+            owner=self.user,
+        )
+        response = self.client.post(f"/api/notes/{note.id}/onedrive/")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("Please connect OneDrive first", response.data["error"])
+        self.assertIn("auth_url", response.data)
+        self.assertTrue(
+            response.data["auth_url"].startswith(
+                "https://login.microsoftonline.com/"
+            )
+        )
+
     def test_pinned_notes(self):
         """Get pinned notes."""
         Note.objects.create(
@@ -156,6 +200,41 @@ class NoteTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["count"], 1)
         self.assertEqual(response.data["results"][0]["title"], "Pinned Note")
+
+    def test_shared_history_endpoint_returns_list(self):
+        """The shared-history route should resolve to the history view."""
+        response = self.client.get("/api/notes/shared-history/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, [])
+
+    def test_sharing_note_creates_history_entry(self):
+        """Sharing a note should appear in the shared-history endpoint."""
+        target_user = User.objects.create_user(
+            email="target@example.com",
+            password="secret123",
+        )
+        note = Note.objects.create(
+            title="Share Me",
+            content="Content",
+            content_type="plain_text",
+            owner=self.user,
+        )
+
+        response = self.client.post(
+            f"/api/notes/{note.id}/share/",
+            {"target": target_user.id},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(
+            NoteSharedHistory.objects.filter(note=note).exists()
+        )
+
+        history_response = self.client.get("/api/notes/shared-history/")
+        self.assertEqual(history_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(history_response.data), 1)
+        self.assertEqual(history_response.data[0]["note"], note.id)
 
 
 class CategoryTest(APITestCase):
@@ -336,3 +415,5 @@ class SharingTests(APITestCase):
         self.assertEqual(
             response.data["message"], "Shared note deleted successfully"
             )
+
+
